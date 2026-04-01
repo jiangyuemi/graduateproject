@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Iterable, List, Optional, Dict, Any
 import json
+import re
+import jieba
 
 from langchain_community.document_loaders import (
     TextLoader,
@@ -15,13 +17,11 @@ from langchain_community.document_loaders import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_classic.chains.retrieval_qa.base import RetrievalQA
-from langchain_core.prompts import (
-    PromptTemplate
-)
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
 from langchain_openai import OpenAIEmbeddings
-from langchain_ollama import OllamaLLM
+from langchain_openai import ChatOpenAI
 
 class RAGService:
     """
@@ -112,7 +112,12 @@ class RAGService:
 
         self.embeddings = BatchedEmbeddings(base_embeddings, max_batch=10)
         # 大语言模型：负责在检索结果基础上生成自然语言回答
-        self.llm = OllamaLLM(model="deepseek-r1:1.5b", base_url="http://172.20.32.1:11434")
+        # 使用阿里云 DashScope 服务，支持 OpenAI 兼容 API
+        self.llm = ChatOpenAI(
+            model="qwen3.5-plus",  # 可选：qwen-turbo, qwen-plus, qwen-max 等
+            api_key=os.getenv("LLM_API_KEY"),
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
         # 向量库与 QA 链在构建索引 / 加载索引后初始化
         self.vectorstore: Optional[VectorStore] = None
         self.qa_chain = None
@@ -170,11 +175,59 @@ class RAGService:
         return loader.load()
     #endregion
 
+    #region 条款分块
+    def split_documents_by_clause(self, documents: List[Document]) -> List[Document]:
+        """
+        以“第 N 条”作为分块单位，支持阿拉伯数字和中文数字（如“第三百七十三条”）。
+        """
+        # 匹配类似：第1条、第 12 条、第十三条、第 三百七十三条等
+        # 在断点处向前查找下一个“第X条”或文本结尾。
+        clause_pattern = re.compile(
+            r"(第\s*[0-9零一二三四五六七八九十百千万亿〇○]+\s*条[\s\S]*?)(?=第\s*[0-9零一二三四五六七八九十百千万亿〇○]+\s*条|$)"
+        )
+        result = []
+        for doc in documents:
+            text = (doc.page_content or "").strip()
+            if not text:
+                continue
+            matches = list(clause_pattern.finditer(text))
+            if matches:
+                for m in matches:
+                    clause_text = m.group(1).strip()
+                    if clause_text:
+                        result.append(Document(page_content=clause_text, metadata=doc.metadata or {}))
+            else:
+                # 未找到“第 N 条”时，退回原文
+                result.append(doc)
+        return result
+    #endregion
+
+    #region jieba分词
+    def tokenize_documents_with_jieba(self, documents: List[Document]) -> List[Document]:
+        """
+        使用jieba对文档进行中文分词，优化向量化效果。
+        """
+        result = []
+        for doc in documents:
+            text = doc.page_content or ""
+            if text.strip():
+                # 使用jieba精确模式分词
+                words = jieba.cut(text, cut_all=False)
+                # 用空格连接分词结果，便于嵌入模型处理
+                tokenized_text = " ".join(words)
+                result.append(Document(page_content=tokenized_text, metadata=doc.metadata or {}))
+            else:
+                result.append(doc)
+        return result
+    #endregion
+
     #region 向量索引构建与加载
     def index_documents(
         self,
         documents: List[Document],
         split: bool = True,
+        split_by_clause: bool = True,
+        use_jieba: bool = True,
     ) -> "RAGService":
         """
         将文档构建为 Chroma 向量索引
@@ -188,14 +241,28 @@ class RAGService:
         """
         # 可选：先对文档做分块切分以提高召回效果
         if split:
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=self.chunk_size,
-                chunk_overlap=self.chunk_overlap,
-                separators=["\n\n", "\n", "。", "！", "？", " ", ""],
-            )
-            splits = splitter.split_documents(documents)
+            if split_by_clause:
+                clause_docs = self.split_documents_by_clause(documents)
+                # 如果拆出来的条款仍然过长，可再做字符分割
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=self.chunk_size,
+                    chunk_overlap=self.chunk_overlap,
+                    separators=["\n\n", "\n", "。", "！", "？", " ", ""],
+                )
+                splits = splitter.split_documents(clause_docs)
+            else:
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=self.chunk_size,
+                    chunk_overlap=self.chunk_overlap,
+                    separators=["\n\n", "\n", "。", "！", "？", " ", ""],
+                )
+                splits = splitter.split_documents(documents)
         else:
             splits = documents
+
+        # 可选：使用jieba进行中文分词，优化向量化
+        if use_jieba:
+            splits = self.tokenize_documents_with_jieba(splits)
 
         # 创建并持久化 Chroma 向量库
         self.vectorstore = Chroma.from_documents(
@@ -234,19 +301,22 @@ class RAGService:
         # 将向量库封装为检索器
         retriever = self.vectorstore.as_retriever(
             search_type="similarity",
-            search_kwargs={"k": 20},
+            search_kwargs={"k": 1},  # 只取最相关的一条文档，进一步减少上下文污染
         )
 
         # 自定义 Prompt，引导模型严格基于检索到的上下文回答
-        prompt_template = (
-            "基于以下上下文回答问题。如果上下文中没有相关信息，请说\"根据现有资料无法回答\"。\n\n"
-            "上下文:\n{context}\n\n问题: {question}\n\n答案:"
-        )
-
         if self.system_prompt:
-            combined = f"系统指令：{self.system_prompt}\n\n" + prompt_template
-            prompt_obj = PromptTemplate(template=combined, input_variables=["context", "question"]) 
+            # 使用 ChatPromptTemplate，支持 system message
+            chat_prompt = ChatPromptTemplate.from_messages([
+                ("system", self.system_prompt),
+                ("human", "基于以下上下文回答问题。如果上下文中没有相关信息，请说\"根据现有资料无法回答\"。\n\n上下文:\n{context}\n\n问题: {question}"),
+            ])
+            prompt_obj = chat_prompt
         else:
+            prompt_template = (
+                "基于以下上下文回答问题。如果上下文中没有相关信息，请说\"根据现有资料无法回答\"。\n\n"
+                "上下文:\n{context}\n\n问题: {question}"
+            )
             prompt_obj = PromptTemplate(template=prompt_template, input_variables=["context", "question"]) 
 
         self.qa_chain = RetrievalQA.from_chain_type(
@@ -265,110 +335,36 @@ class RAGService:
     #region 对外问答接口
 
     # 类型注解和返回值类型注解
-    def query(self, demand: str) -> dict:
+    def tokenize_query_with_jieba(self, query: str) -> str:
         """
-        对外暴露的问答接口：给定问题，返回答案与引用的文档
+        对问题做 jieba 分词（用于向量检索）。
+        返回带空格分隔的分词文本，可提高中文语义检索效果。
+        """
+        if not query or not query.strip():
+            return query
+        tokens = jieba.cut(query, cut_all=False)
+        return " ".join(tokens)
+
+    def query(self, demand: str, use_jieba: bool = True) -> dict:
+        """
+        对外暴露的问答接口：给定问题，返回答案与引用的文档。
 
         Args:
             demand: 用户要求
+            use_jieba: 是否对问题使用 jieba 分词（默认为 True）
 
         Returns:
             {"result": 答案文本, "source_documents": 来源文档列表}
         """
         if self.qa_chain is None:
             raise RuntimeError("请先调用 index_documents 或 load_index 构建索引")
-        return self.qa_chain.invoke({"question": demand})
+
+        query_text = demand
+        if use_jieba:
+            query_text = self.tokenize_query_with_jieba(demand)
+
+        return self.qa_chain.invoke({"question": query_text})
     #endregion
-
-    #region function calling
-    def query_with_function_call(
-        self,
-        question: str,
-        functions: List[dict],
-        local_functions: Dict[str, Any],
-        top_k: int = 4,
-    ) -> dict:
-        """
-        一个轻量的 function-calling 流程（适配本地 Ollama 或任意返回文本的 LLM）：
-
-        - 从向量库检索 top_k 个文档构造上下文
-        - 将上下文和问题拼接成 prompt，要求模型在需要时以 JSON 格式返回 function_call
-        - 若模型返回 function_call，则解析 arguments 并调用 `local_functions[name](**args)`
-        - 将函数执行结果作为 "function" 消息再次提供给模型，生成最终回答
-
-        注意：这里使用的是 LLM 的文本输出（self.llm.generate），要求模型按约定输出 JSON。具体可以根据你本地 Ollama 的行为调整。
-        """
-
-        if self.vectorstore is None:
-            raise RuntimeError("请先调用 index_documents 或 load_index 构建索引")
-
-        # 从向量库检索文档
-        retriever = self.vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": top_k})
-        docs = retriever.get_relevant_documents(question)
-        context = "\n\n".join([d.page_content for d in docs])
-
-        # 构造 prompt（和 _build_qa_chain 使用的一致）
-        prompt_template = (
-            "基于以下上下文回答问题。如果上下文中没有相关信息，请说\"根据现有资料无法回答\"。\n\n"
-            "上下文:\n{context}\n\n问题: {question}\n\n答案:"
-        )
-
-        # 指导模型在需要时只输出 JSON 格式的 function_call
-        guidance = (
-            "\n\n附加指引: 如果需要调用函数，请仅输出一个 JSON 对象，形如:\n"
-            "{\"function_call\": {\"name\": \"func_name\", \"arguments\": { ... }}}。\n"
-            "如果不需要调用函数，则直接输出最终回答文本。"
-        )
-
-        prompt = prompt_template.format(context=context, question=question) + guidance
-
-        # 调用 LLM（使用 LangChain LLM 的 generate 接口）
-        llm_result = self.llm.generate([prompt])
-        try:
-            first_gen = llm_result.generations[0][0].text
-        except Exception:
-            # 兜底：尝试从更通用的属性获取文本
-            first_gen = getattr(llm_result, "text", "")
-
-        first_text = first_gen.strip()
-
-        # 尝试解析 JSON（判断模型是否请求函数调用）
-        func_call = None
-        try:
-            parsed = json.loads(first_text)
-            func_call = parsed.get("function_call")
-        except Exception:
-            func_call = None
-
-        # 如果没有函数调用，直接把模型的文本作为回答返回
-        if not func_call:
-            return {"result": first_text, "source_documents": docs}
-
-        # 否则解析函数名和参数并调用本地函数
-        func_name = func_call.get("name")
-        func_args = func_call.get("arguments", {})
-        if func_name not in local_functions:
-            return {"result": f"请求的函数 {func_name} 未提供实现", "source_documents": docs}
-
-        # 调用本地函数（期待返回可 JSON 序列化的结果）
-        func_result = local_functions[func_name](**func_args)
-
-        # 将函数结果再发一次给模型，请求最终回答
-        followup_prompt = (
-            prompt
-            + "\n\n函数调用结果:\n"
-            + json.dumps(func_result, ensure_ascii=False)
-            + "\n\n请基于函数结果给出最终回答："
-        )
-
-        final_res = self.llm.generate([followup_prompt])
-        try:
-            final_text = final_res.generations[0][0].text.strip()
-        except Exception:
-            final_text = getattr(final_res, "text", "").strip()
-
-        return {"result": final_text, "source_documents": docs}
-        #endregion
 
 
 
@@ -383,15 +379,15 @@ def get_rag():
         path_is_exist = Path(__file__).parent / "chroma_db"
         if path_is_exist.exists():
             _rag = RAGService(
-                chunk_size=300,
-                chunk_overlap=30,
+                chunk_size=100,
+                chunk_overlap=10,
             ).load_index()
         else:
             _rag = RAGService(
-                chunk_size=300,
-                chunk_overlap=30,
+                chunk_size=100,
+                chunk_overlap=10,
             )
-            docpath = Path(__file__).parent / "legal.pdf"
+            docpath = Path(__file__).parent / "knowlege.pdf"
             docs = _rag.load_documents(str(docpath), loader_type="pdf")
             _rag.index_documents(docs)
     return _rag
