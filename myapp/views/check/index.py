@@ -102,18 +102,30 @@ class CheckHandler(APIView):
             # 5. 执行合规检查
             if contract_content:
                 check_result = self.perform_compliance_check(contract_content)
+                
+                # 6. 返回成功响应
+                if check_result.get("status") == "success":
+                    response_data = {
+                        "code": 200,
+                        "message": "合规检查已完成",
+                        "data": {
+                            "risk_level": check_result.get("risk_level"),
+                            "issues": check_result.get("issues", []),
+                            "structured_data": check_result.get("structured_data"),
+                            "summary": check_result.get("summary")
+                        }
+                    }
+                else:
+                    response_data = {
+                        "code": 500,
+                        "message": "合规检查失败",
+                        "error": check_result.get("error")
+                    }
             else:
                 return Response({
                     "code": 400,
                     "message": "无法提取合同内容，请检查文件格式或直接输入合同内容"
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 6. 返回成功响应
-            response_data = {
-                "code": 200,
-                "message": "合规检查已完成",
-                "content": check_result
-            }
             
             if file_info:
                 response_data["file_info"] = file_info
@@ -180,7 +192,7 @@ class CheckHandler(APIView):
             contract_content: 合同内容
             
         Returns:
-            合规检查结果
+            合规检查结果字典
         """
         try:
             # 初始化智能体
@@ -189,10 +201,17 @@ class CheckHandler(APIView):
             # 分析合同
             analysis_result = agent.analyze_contract(contract_content)
             
-            # 生成摘要
-            summary = agent.generate_summary(analysis_result)
-            
-            return summary
+            # 如果分析成功，返回完整结果；否则返回错误信息
+            if analysis_result.get("status") == "success":
+                # 生成摘要用于显示
+                summary = agent.generate_summary(analysis_result)
+                analysis_result["summary"] = summary
+                return analysis_result
+            else:
+                return analysis_result
             
         except Exception as e:
-            return f"合规检查过程中发生错误: {str(e)}"
+            return {
+                "status": "error",
+                "error": f"合规检查过程中发生错误: {str(e)}"
+            }
