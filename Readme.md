@@ -651,3 +651,64 @@ def post(self, request):
 ```
 
 实用建议：在使用 DRF 编写 API 时，统一使用 `request.data` 并为重要的输入定义 `Serializer`，这样既能获得自动校验，也能让文档工具（如 drf-spectacular）生成正确的请求体表单。
+
+---
+
+# RAG 缓存机制说明（`myapp/views/generate/ragservice/rag_service.py`）
+
+这里的目标很简单：**降低平均响应时间**。RAG 的慢点通常来自两类网络调用：
+
+- **检索阶段**：把问题做 embedding + 向量库近邻搜索（Chroma）
+- **生成阶段**：把“上下文 + 问题”发给大模型生成答案
+
+为了让“重复提问 / 换个说法再问”也更快，`RAGService.query()` 做了 **两级缓存**，并提供可调开关。
+
+## 两级缓存是怎么工作的
+
+### 1）精确缓存（Exact Cache）
+
+- **key**：`query_text`（对 `demand` 做了 jieba 分词后的字符串）
+- **存什么**：检索得到的 `source_documents`
+- **何时命中**：两次问题分词结果**完全一致**（比如用户重复问同一句）
+- **收益**：命中时几乎 0 成本跳过检索
+
+### 2）语义缓存（Semantic Cache，解决“相似问法”）
+
+- **思路**：对 `query_text` 做 embedding，和历史问题的 embedding 计算**余弦相似度**
+- **何时命中**：相似度 \(\ge\) `RAG_SEMANTIC_CACHE_THRESHOLD`（默认 0.92）
+- **命中后做什么**：
+  - 默认模式 `docs`：**复用历史检索到的 docs**，但仍用“当前问题”重新生成答案（更稳妥）
+  - 激进模式 `answer`：直接复用历史答案（最快，但“相似不等价”的问法可能会答偏）
+- **收益**：命中时可以跳过向量库检索（经常是慢点之一）
+
+## 为什么要“先检索再生成”
+
+原来 `RetrievalQA` 把流程封装成黑盒：检索 + 生成揉在一次调用里，不方便做缓存与细粒度计时。
+
+现在 `query()` 拆成了：
+
+- 先拿到 docs（可命中缓存）
+- 再拼上下文并调用 LLM（并对上下文做长度限制）
+
+这样就能做到：**缓存命中时减少检索成本**，同时通过限制上下文长度减少 LLM 的 token 处理时间。
+
+## 可用的环境变量（调参入口）
+
+- **`RAG_MAX_CONTEXT_CHARS`**：上下文最大字符数（默认 4500）。越小越快，但可能降低准确率
+- **`RAG_RETRIEVAL_CACHE_SIZE`**：精确缓存容量（默认 128）
+- **`RAG_SEMANTIC_CACHE_SIZE`**：语义缓存容量（默认 256）
+- **`RAG_SEMANTIC_CACHE_THRESHOLD`**：语义命中阈值（默认 0.92）
+- **`RAG_SEMANTIC_CACHE_MODE`**：`docs`（默认）或 `answer`
+
+## 推荐默认配置（用户体验优先）
+
+- **先用稳妥模式**：
+  - `RAG_SEMANTIC_CACHE_MODE=docs`
+  - `RAG_SEMANTIC_CACHE_THRESHOLD=0.92`（命中更严格，减少“答偏”）
+  - `RAG_MAX_CONTEXT_CHARS=3000~4500`（结合你的知识库大小调整）
+
+如果你特别追求速度、且问法非常固定，可以再试：
+
+- `RAG_SEMANTIC_CACHE_MODE=answer`
+
+但要明确：它是用“相似问法直接复用旧答案”换速度，适合 FAQ 类场景，不适合需要严格逐字对齐上下文的场景。

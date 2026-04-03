@@ -3,299 +3,638 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>租房合同生成</title>
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.css">
+    <title>租房合同工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
     <style>
-        :root{
-            --bg:#f5f7fb; --card:#ffffff; --muted:#6b7280; --accent:#2563eb; --accent-600:#1e40af; --danger:#dc2626; --radius:12px;
-            --glass: rgba(255,255,255,0.6);
+        :root {
+            --bg-deep: #07060d;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --text: #f1f0f7;
+            --muted: #9b96b0;
+            --cyan: #2dd4bf;
+            --violet: #a78bfa;
+            --rose: #fb7185;
+            --amber: #fbbf24;
+            --err: #f87171;
+            --ok: #4ade80;
         }
-        *{box-sizing:border-box}
-        html,body{height:100%}
-        body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:28px; background:linear-gradient(180deg,#f6f9ff 0%,var(--bg) 100%); color:#0f172a }
-        h1{margin:0 0 8px 0; font-size:1.6rem}
-        .container { max-width:1100px; margin:18px auto; display:grid; grid-template-columns: 1fr 420px; gap:20px; align-items:start }
-        @media (max-width:980px){ .container{grid-template-columns:1fr} }
-        .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:0 6px 18px rgba(15,23,42,0.06); border:1px solid rgba(15,23,42,0.04) }
-        label { display:block; margin-top:10px; font-weight:600; color:#0f172a }
-        input, textarea, select { width:100%; padding:10px 12px; margin-top:6px; border-radius:8px; border:1px solid #e6eef8; background:linear-gradient(180deg,#fff,#fbfdff); outline:none }
-        input:focus, textarea:focus, select:focus { border-color:var(--accent); box-shadow:0 4px 12px rgba(37,99,235,0.08) }
-        textarea{min-height:90px}
-        .inline { display:flex; gap:10px }
-        .inline > * { flex:1 }
-        .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:9px 14px; background:var(--accent); color:#fff; border-radius:10px; cursor:pointer; border:none; font-weight:600 }
-        .btn.secondary { background:#f3f4f6; color:#111827; box-shadow:none; border:1px solid rgba(15,23,42,0.04) }
-        .btn:active{transform:translateY(1px)}
-        #preview { white-space:pre-wrap; background:linear-gradient(180deg,#ffffff,#fbfdff); min-height:300px; padding:18px; border-radius:10px; border:1px solid rgba(15,23,42,0.04); font-family: "Noto Serif SC", serif; line-height:1.8; color:#0b1220 }
-        .clauses-list { margin-top:8px }
-        .clause-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; padding:8px; background:var(--glass); border-radius:8px; border:1px solid rgba(2,6,23,0.04) }
-        .small { font-size:0.9rem; color:var(--muted); margin-top:8px }
-        .muted{color:var(--muted)}
-        .file-row{display:flex; gap:10px; align-items:center}
-        .tag{display:inline-block;padding:6px 8px;border-radius:8px;background:#eef2ff;color:var(--accent-600);font-weight:600}
+        *, *::before, *::after { box-sizing: border-box; }
+        html { -webkit-font-smoothing: antialiased; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Noto Sans SC", system-ui, sans-serif;
+            color: var(--text);
+            background: var(--bg-deep);
+            font-size: 15px;
+            line-height: 1.55;
+        }
+        /* 背景：极光 + 细网格 */
+        .page {
+            position: relative;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .page::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 90% 70% at 10% -10%, rgba(167, 139, 250, 0.35), transparent 50%),
+                radial-gradient(ellipse 70% 50% at 90% 10%, rgba(45, 212, 191, 0.22), transparent 45%),
+                radial-gradient(ellipse 60% 40% at 50% 100%, rgba(251, 113, 133, 0.12), transparent 50%),
+                linear-gradient(180deg, #0c0a14 0%, #07060d 100%);
+            pointer-events: none;
+        }
+        .page::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.35;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+        }
+        .shell {
+            position: relative;
+            z-index: 1;
+            max-width: 44rem;
+            margin: 0 auto;
+            padding: 2.5rem 1.35rem 4rem;
+        }
+        /* 顶栏 */
+        .hero {
+            margin-bottom: 2rem;
+        }
+        .kicker {
+            font-family: "Syne", sans-serif;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            color: var(--cyan);
+            margin: 0 0 0.6rem;
+            text-transform: uppercase;
+        }
+        .hero h1 {
+            font-family: "Syne", "Noto Sans SC", sans-serif;
+            font-size: clamp(1.85rem, 5vw, 2.35rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            margin: 0 0 0.65rem;
+            background: linear-gradient(120deg, #fff 0%, #c4b5fd 45%, #5eead4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .lead {
+            margin: 0;
+            font-size: 0.92rem;
+            color: var(--muted);
+        }
+        /* Tab 胶囊 */
+        .tab-pills {
+            display: flex;
+            gap: 0.35rem;
+            padding: 0.35rem;
+            margin-bottom: 2rem;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+        }
+        .tab-pills button {
+            flex: 1;
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.65rem 1rem;
+            border: none;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+        }
+        .tab-pills button:hover:not(.active) {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .tab-pills button.active {
+            color: #0f172a;
+            background: linear-gradient(135deg, var(--cyan) 0%, #5eead4 100%);
+            box-shadow: 0 0 24px rgba(45, 212, 191, 0.35);
+        }
+        /* 玻璃面板 */
+        .glass {
+            padding: 1.35rem 1.4rem;
+            border-radius: 1.15rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            margin-bottom: 1.15rem;
+        }
+        .glass h2 {
+            font-family: "Syne", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--violet);
+            margin: 0 0 1rem;
+        }
+        label.lbl {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+        textarea.inp, input[type="file"].inp {
+            width: 100%;
+            font: inherit;
+            padding: 0.9rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--text);
+        }
+        textarea.inp {
+            min-height: 10rem;
+            resize: vertical;
+            line-height: 1.6;
+        }
+        textarea.inp::placeholder { color: #6b6578; }
+        textarea.inp:focus, input.inp:focus {
+            outline: none;
+            border-color: rgba(45, 212, 191, 0.5);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+        }
+        .row-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+        .btn {
+            font: inherit;
+            font-weight: 600;
+            padding: 0.65rem 1.25rem;
+            border-radius: 0.65rem;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-primary {
+            color: #0f172a;
+            background: linear-gradient(135deg, var(--cyan), #5eead4);
+            box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 28px rgba(45, 212, 191, 0.35);
+        }
+        .btn-ghost {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+        }
+        .btn-ghost:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.12);
+        }
+        .spin {
+            display: inline-block;
+            width: 0.9rem;
+            height: 0.9rem;
+            border: 2px solid rgba(15, 23, 42, 0.2);
+            border-top-color: #0f172a;
+            border-radius: 50%;
+            animation: r 0.55s linear infinite;
+            vertical-align: -0.12rem;
+        }
+        .btn-ghost .spin {
+            border-color: rgba(255, 255, 255, 0.2);
+            border-top-color: var(--cyan);
+        }
+        @keyframes r { to { transform: rotate(360deg); } }
+        .divider {
+            margin: 1.5rem 0 1.25rem;
+            padding-top: 1.25rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .msg-err {
+            margin-top: 0.85rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.65rem;
+            border: 1px solid rgba(248, 113, 113, 0.35);
+            background: rgba(248, 113, 113, 0.08);
+            color: #fecaca;
+            font-size: 0.88rem;
+        }
+        .msg-ok {
+            margin-bottom: 0.85rem;
+            padding: 0.6rem 0.9rem;
+            border-radius: 0.65rem;
+            border: 1px solid rgba(74, 222, 128, 0.35);
+            background: rgba(74, 222, 128, 0.08);
+            color: #bbf7d0;
+            font-size: 0.88rem;
+        }
+        .out {
+            margin-top: 0.5rem;
+            padding: 1.15rem 1.2rem;
+            border-radius: 0.85rem;
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            background: rgba(0, 0, 0, 0.25);
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: #e8e6f0;
+        }
+        .empty-hint {
+            margin-top: 1rem;
+            padding: 2rem 1.25rem;
+            text-align: center;
+            border-radius: 0.85rem;
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+        details.iter {
+            margin-top: 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 0.82rem;
+        }
+        details.iter summary {
+            padding: 0.65rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--amber);
+        }
+        details.iter pre {
+            margin: 0;
+            padding: 0.85rem 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            max-height: 9rem;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #c9c4d8;
+        }
+        .warn { color: #fcd34d; margin: 0.4rem 1rem 0.85rem; font-size: 0.8rem; }
+        .risk {
+            font-family: "Syne", sans-serif;
+            font-size: clamp(1.75rem, 5vw, 2.25rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0.25rem 0 1rem;
+            line-height: 1.2;
+        }
+        .risk.high {
+            background: linear-gradient(90deg, #f87171, #fb7185);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 24px rgba(251, 113, 133, 0.35));
+        }
+        .risk.medium {
+            background: linear-gradient(90deg, #fbbf24, #f97316);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .risk.low {
+            background: linear-gradient(90deg, #4ade80, #2dd4bf);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        blockquote.sum {
+            margin: 0 0 1rem;
+            padding: 1rem 1.1rem;
+            border-radius: 0.75rem;
+            border-left: 3px solid var(--violet);
+            background: rgba(139, 92, 246, 0.08);
+            font-size: 0.88rem;
+            color: #ddd8ec;
+        }
+        ul.issues {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        ul.issues li {
+            padding: 0.85rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.88rem;
+        }
+        ul.issues li:last-child { border-bottom: none; }
+        ul.issues .id {
+            display: inline-block;
+            margin-right: 0.35rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 0.35rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: rgba(167, 139, 250, 0.2);
+            color: #ddd6fe;
+        }
+        ul.issues .cl {
+            display: block;
+            margin-top: 0.45rem;
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+        details.raw {
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+        details.raw pre {
+            margin: 0.5rem 0 0;
+            padding: 0.85rem;
+            border-radius: 0.65rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-height: 12rem;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #a8a3bc;
+        }
+        .file-note {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.85rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .btn-primary:hover:not(:disabled) { transform: none; }
+            .spin { animation: none; opacity: 0.6; }
+        }
     </style>
 </head>
 <body>
-    <h1 style = "text-align: center;">租房合同生成器</h1>
-    <p class="small" style = "text-align: center;">填写双方信息、可添加额外条款，点击“预览合同”生成文本，支持 PDF 下载与合同文件上传合规检查。</p>
+    {% csrf_token %}
+    {% verbatim %}
+    <div id="app" class="page">
+        <div class="shell">
+            <header class="hero">
+                <p class="kicker">Contract Lab</p>
+                <h1>租房合同工作台</h1>
+                <p class="lead">一句话生成条款 · 上传或粘贴即可审查风险</p>
+            </header>
 
-    <div class="container">
-        <div class="card">
-            <h2>基础信息</h2>
-            <form id="contractForm">
-                <h3>房东信息</h3>
-                <label>姓名 <input type="text" id="landlord_name" placeholder="房东姓名"></label>
-                <label>身份证/证件号 <input type="text" id="landlord_id" placeholder="身份证号"></label>
-                <label>联系电话 <input type="text" id="landlord_phone" placeholder="手机号"></label>
+            <nav class="tab-pills" aria-label="功能">
+                <button type="button" :class="{ active: tab === 'gen' }" @click="tab = 'gen'">生成</button>
+                <button type="button" :class="{ active: tab === 'check' }" @click="tab = 'check'">检查</button>
+            </nav>
 
-                <h3>租户信息</h3>
-                <label>姓名 <input type="text" id="tenant_name" placeholder="租户姓名"></label>
-                <label>身份证/证件号 <input type="text" id="tenant_id" placeholder="身份证号"></label>
-                <label>联系电话 <input type="text" id="tenant_phone" placeholder="手机号"></label>
-
-                <h3>租赁信息</h3>
-                <label>房屋地址 <input type="text" id="property_address" placeholder="例如：北京市朝阳区XX小区XX号"></label>
-                <label class="inline">租金（月） <input type="number" id="rent" placeholder="租金（元/月）"> 押金 <input type="number" id="deposit" placeholder="押金（元）"></label>
-                <label class="inline">起始日期 <input type="date" id="start_date"> 结束日期 <input type="date" id="end_date"></label>
-                <label>付款方式 <select id="payment_method"><option value="月付">月付</option><option value="季付">季付</option><option value="年付">年付</option></select></label>
-
-                <h3>额外条款</h3>
-                <label>新增条款（单条） <input type="text" id="clause_input" placeholder="例如：禁止养宠物"></label>
-                <div style="margin-top:8px">
-                    <button type="button" id="addClause" class="btn secondary">添加条款</button>
+            <section v-show="tab === 'gen'">
+                <div class="glass">
+                    <h2>Compose</h2>
+                    <label class="lbl" for="demand">告诉模型你的需求</label>
+                    <textarea id="demand" class="inp" v-model="demand" placeholder="租金、租期、房屋地址、押金、是否允许转租…"></textarea>
+                    <div class="row-btns">
+                        <button type="button" class="btn btn-primary" :disabled="genLoading || !demand.trim()" @click="runGenerate">
+                            <span v-if="genLoading" class="spin"></span>
+                            {{ genLoading ? '生成中' : '生成合同' }}
+                        </button>
+                    </div>
+                    <p v-if="genError" class="msg-err">{{ genError }}</p>
                 </div>
-                <div class="clauses-list" id="clausesList"></div>
 
-                <div style="margin-top:12px" class="inline">
-                    <button type="button" id="previewBtn" class="btn">预览合同</button>
-                    <button type="button" id="downloadPdfBtn" class="btn">下载 PDF</button>
+                <div class="glass">
+                    <h2>Output</h2>
+                    <template v-if="genResult">
+                        <p v-if="genResult.success" class="msg-ok">合规检查通过</p>
+                        <p v-else class="msg-err">{{ genResult.message || '未通过审查' }}</p>
+                        <div class="out">{{ displayFinalContract }}</div>
+                        <details v-if="genResult.iterations?.length" class="iter">
+                            <summary>查看迭代 · {{ genResult.total_iterations }} 轮</summary>
+                            <div v-for="(it, idx) in genResult.iterations" :key="idx">
+                                <pre>{{ it.demand }}</pre>
+                                <p v-if="it.issues?.length" class="warn">{{ formatIssues(it.issues) }}</p>
+                            </div>
+                        </details>
+                    </template>
+                    <div v-else class="empty-hint">生成结果会出现在这里，像一份真正的合同草稿。</div>
                 </div>
-            </form>
+            </section>
 
-            <hr>
-            <h3>上传合同进行合规检查</h3>
-            <input type="file" id="contractFile" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-            <div style="margin-top:12px">
-                <h4>或直接输入合同内容</h4>
-                <textarea id="contractContent" placeholder="请粘贴您的租房合同内容" style="min-height:150px"></textarea>
-            </div>
-            <div style="margin-top:8px" class="inline">
-                <button id="uploadBtn" class="btn">上传文件并检查</button>
-                <button id="checkContentBtn" class="btn">检查输入内容</button>
-            </div>
-            <div id="complianceResult" style="margin-top:12px"></div>
-        </div>
+            <section v-show="tab === 'check'">
+                <div class="glass">
+                    <h2>Ingest</h2>
+                    <label class="lbl">上传文件</label>
+                    <input type="file" class="inp" ref="fileInput" accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                    <div class="row-btns">
+                        <button type="button" class="btn btn-primary" :disabled="checkFileLoading" @click="runCheckFile">
+                            <span v-if="checkFileLoading" class="spin"></span>
+                            {{ checkFileLoading ? '解析中' : '检查文件' }}
+                        </button>
+                    </div>
+                    <div class="divider">
+                        <label class="lbl" for="paste">或直接粘贴全文</label>
+                        <textarea id="paste" class="inp" v-model="contractContent" placeholder="把整份合同贴进来…"></textarea>
+                        <div class="row-btns">
+                            <button type="button" class="btn btn-ghost" :disabled="checkTextLoading" @click="runCheckText">
+                                <span v-if="checkTextLoading" class="spin"></span>
+                                {{ checkTextLoading ? '分析中' : '检查文本' }}
+                            </button>
+                        </div>
+                    </div>
+                    <p v-if="checkError" class="msg-err">{{ checkError }}</p>
+                </div>
 
-        <div class="card">
-            <h2>合同预览</h2>
-            <div id="preview">请填写信息后点击“预览合同”。</div>
-            <div style="margin-top:12px; font-size:0.9rem; color:#666">
-                <strong>提示：</strong>预览区域将按中文合同格式生成可下载的 PDF。如需后端合成或保存，请提供相应接口，我可以一并实现。
-            </div>
+                <div class="glass">
+                    <h2>Verdict</h2>
+                    <template v-if="checkPayload && checkPayload.code === 200 && checkPayload.data">
+                        <p v-if="checkPayload.data.risk_level" :class="riskLineClass(checkPayload.data.risk_level)">
+                            {{ riskLabel(checkPayload.data.risk_level) }}
+                        </p>
+                        <blockquote v-if="checkPayload.data.summary" class="sum">{{ checkPayload.data.summary }}</blockquote>
+                        <ul v-if="checkPayload.data.issues?.length" class="issues">
+                            <li v-for="(issue, i) in checkPayload.data.issues" :key="i">
+                                <span class="id">{{ issue.rule_id || '—' }}</span>
+                                {{ issue.message }}
+                                <span v-if="issue.clause" class="cl">{{ issue.clause }}</span>
+                            </li>
+                        </ul>
+                        <details v-if="checkPayload.data.structured_data" class="raw">
+                            <summary>结构化 JSON</summary>
+                            <pre>{{ structuredJson }}</pre>
+                        </details>
+                        <p v-if="checkPayload.file_info" class="file-note">{{ checkPayload.file_info.original_name }}</p>
+                    </template>
+                    <div v-else-if="!checkError && !checkPayload" class="empty-hint">跑完检查之后，风险等级和条款问题会集中展示在这里。</div>
+                </div>
+            </section>
         </div>
     </div>
+    {% endverbatim %}
 
-    <!-- 引入外部脚本：html2canvas + jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
-        // CSRF helper: 从 cookie 中读取 csrftoken，并为非安全方法自动设置 X-CSRFToken 头
+        const { createApp } = Vue;
+
         function getCookie(name) {
             const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
             return v ? v.pop() : '';
         }
 
-        function stripThink(input){
-            return input.replace(/<think>[\s\S]*?<\/think>\s*/i, '').trim();
+        function stripThink(input) {
+            if (!input || typeof input !== 'string') return input;
+            return input
+                .replace(/<redacted_thinking>[\s\S]*?<\/redacted_thinking>/gi, '')
+                .replace(/<redacted_thinking>[\s\S]*?<\/think>/gi, '')
+                .trim();
         }
 
-        $.ajaxSetup({
-            beforeSend: function(xhr, settings) {
-                if (!(/^GET|HEAD|OPTIONS|TRACE$/i.test(settings.type)) && !this.crossDomain) {
-                    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-                }
-            }
-        });
-
-        const clausesrow = [];
-        const clauses = [];
-        const clausesList = document.getElementById('clausesList');
-        document.getElementById('addClause').addEventListener('click', ()=>{
-            const val = document.getElementById('clause_input').value.trim();
-            if(!val) return alert('请输入条款内容');
-            $.ajax({
-                url: 'http://localhost:8000/generate/generate/',
-                type: 'post', // GET、POST、PUT、DELETE 等
-                data: {
-                    'demand':val,
-                }, // 可省略
-                dataType: 'json', // json, xml, text, html 等
-                success: function(data, status, xhr) {
-                    clauses.push(stripThink(data.result));
-                    // 请求成功时的回调函数，`data` 是服务器返回的数据
+        createApp({
+            data() {
+                return {
+                    tab: 'gen',
+                    demand: '',
+                    genLoading: false,
+                    genError: '',
+                    genResult: null,
+                    contractContent: '',
+                    checkFileLoading: false,
+                    checkTextLoading: false,
+                    checkError: '',
+                    checkPayload: null
+                };
+            },
+            computed: {
+                displayFinalContract() {
+                    if (!this.genResult) return '';
+                    return stripThink(this.genResult.final_contract || '');
                 },
-                error: function(xhr, status, error) {
-                    // 请求失败时的回调函数
+                structuredJson() {
+                    const sd = this.checkPayload?.data?.structured_data;
+                    if (sd === undefined || sd === null) return '';
+                    try {
+                        return JSON.stringify(sd, null, 2);
+                    } catch (e) {
+                        return String(sd);
+                    }
+                }
+            },
+            methods: {
+                riskLabel(level) {
+                    const l = String(level || '').toLowerCase();
+                    if (l === 'high' || l === '高') return '高风险';
+                    if (l === 'medium' || l === '中') return '中风险';
+                    return '低风险';
                 },
-            });
-            clausesrow.push(val);
-            renderClauses();
-            document.getElementById('clause_input').value = '';
-        });
-
-        function renderClauses(){
-            clausesList.innerHTML = '';
-            clausesrow.forEach((c,idx)=>{
-                const div = document.createElement('div');
-                div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginTop='6px';
-                div.innerHTML = `<div style="flex:1">${idx+1}. ${escapeHtml(c)}</div>`;
-                const rm = document.createElement('button'); rm.textContent='移除'; rm.className='btn secondary'; rm.style.padding='4px 8px'; rm.onclick = ()=>{ clauses.splice(idx,1); renderClauses(); };
-                div.appendChild(rm);
-                clausesList.appendChild(div);
-            });
-        }
-
-        function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-        function buildContractText(){
-            const L = id => document.getElementById(id).value || '';
-            const landlord_name = L('landlord_name');
-            const landlord_id = L('landlord_id');
-            const landlord_phone = L('landlord_phone');
-            const tenant_name = L('tenant_name');
-            const tenant_id = L('tenant_id');
-            const tenant_phone = L('tenant_phone');
-            const property_address = L('property_address');
-            const rent = L('rent');
-            const deposit = L('deposit');
-            const start_date = L('start_date');
-            const end_date = L('end_date');
-            const payment_method = L('payment_method');
-
-            let text = '';
-            text += `租赁双方：\n甲方（房东）：${landlord_name}，证件号：${landlord_id}，电话：${landlord_phone}\n`;
-            text += `乙方（租户）：${tenant_name}，证件号：${tenant_id}，电话：${tenant_phone}\n\n`;
-            text += `第一条 房屋信息\n房屋坐落：${property_address}\n租赁期限：自 ${start_date} 起至 ${end_date} 止\n`;
-            text += `租金及押金：租金为 ${rent} 元/${payment_method}，押金为 ${deposit} 元。\n付款方式：${payment_method}。\n\n`;
-            text += `第二条 使用及维护\n双方应按国家法律法规及本合同约定使用并维护房屋及设施。未经同意不得擅自改变房屋结构。\n\n`;
-            if(clauses.length){
-                text += `第三条 额外约定条款\n`;
-                clauses.forEach((c, i)=>{ text += `${i+1}. ${c}\n`; });
-                text += `\n`;
-            }
-            text += `第四条 违约责任与争议解决\n发生争议，双方应友好协商；协商不成的，向房屋所在地人民法院提起诉讼。\n\n`;
-            text += `甲方签字：__________________    日期：____年__月__日\n乙方签字：__________________    日期：____年__月__日\n`;
-            return text;
-        }
-        document.getElementById('previewBtn').addEventListener('click', ()=>{
-            const txt = buildContractText();
-            document.getElementById('preview').textContent = txt;
-        });
-
-        document.getElementById('downloadPdfBtn').addEventListener('click', async ()=>{
-            const previewEl = document.getElementById('preview');
-            // ensure preview up-to-date
-            previewEl.textContent = buildContractText();
-            // use html2canvas + jsPDF to export
-            const canvas = await html2canvas(previewEl, { scale: 2 });
-            const img = canvas.toDataURL('image/png');
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-            const pageWidth = 210; // mm
-            const imgProps = pdf.getImageProperties(img);
-            const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
-            pdf.addImage(img, 'PNG', 0, 0, pageWidth, pdfHeight);
-            pdf.save('租房合同.pdf');
-        });
-
-        // 上传文件并合规检查
-        document.getElementById('uploadBtn').addEventListener('click', async ()=>{
-            const fileEl = document.getElementById('contractFile');
-            const file = fileEl.files[0];
-            if(!file) return alert('请选择合同文件上传');
-            const fd = new FormData(); 
-            fd.append('upload_file', file);
-            const target = '/check/check/';
-            document.getElementById('complianceResult').textContent = '上传中……';
-            try{
-                const res = await fetch(target, { 
-                    method:'POST', 
-                    body: fd,
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
+                riskLineClass(level) {
+                    const l = String(level || '').toLowerCase();
+                    if (l === 'high' || l === '高') return 'risk high';
+                    if (l === 'medium' || l === '中') return 'risk medium';
+                    return 'risk low';
+                },
+                formatIssues(issues) {
+                    if (!issues?.length) return '';
+                    return issues.map((x) => x.message).join('；');
+                },
+                runGenerate() {
+                    const d = this.demand.trim();
+                    if (!d) return;
+                    this.genLoading = true;
+                    this.genError = '';
+                    this.genResult = null;
+                    fetch('/generate/generate/', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ demand: d })
+                    })
+                        .then((res) => {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        })
+                        .then((data) => { this.genResult = data; })
+                        .catch((e) => { this.genError = e.message || String(e); })
+                        .finally(() => { this.genLoading = false; });
+                },
+                runCheckFile() {
+                    const input = this.$refs.fileInput;
+                    const file = input?.files?.[0];
+                    if (!file) {
+                        alert('先选文件');
+                        return;
                     }
-                });
-                if(!res.ok) throw new Error('服务器返回 '+res.status);
-                const data = await res.json();
-                if(data.code === 200){
-                    document.getElementById('complianceResult').innerHTML = `<div style="color:green">合规检查完成</div><pre style="white-space:pre-wrap; background:#f5f5f5; padding:10px; border-radius:8px; margin-top:8px; font-size:0.9rem">${escapeHtml(data.content)}</pre>`;
-                } else {
-                    document.getElementById('complianceResult').innerHTML = `<div style="color:#b44">检查失败</div><div>错误：${data.message||'未知错误'}</div>`;
-                }
-            }catch(e){
-                document.getElementById('complianceResult').textContent = '上传或检查失败：' + e.message;
-            }
-        });
-
-        // 检查直接输入的合同内容
-        document.getElementById('checkContentBtn').addEventListener('click', async ()=>{
-            const content = document.getElementById('contractContent').value.trim();
-            if(!content) return alert('请输入合同内容');
-            const target = '/check/check/';
-            document.getElementById('complianceResult').textContent = '检查中……';
-            try{
-                const res = await fetch(target, { 
-                    method:'POST', 
-                    body: JSON.stringify({contract_content: content}),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
+                    const fd = new FormData();
+                    fd.append('upload_file', file);
+                    this.checkFileLoading = true;
+                    this.checkError = '';
+                    this.checkPayload = null;
+                    fetch('/check/check/', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                        body: fd
+                    })
+                        .then((res) => res.json().then((j) => ({ body: j })))
+                        .then((r) => { this.applyCheckResponse(r.body); })
+                        .catch((e) => { this.checkError = e.message || String(e); })
+                        .finally(() => { this.checkFileLoading = false; });
+                },
+                runCheckText() {
+                    const text = (this.contractContent || '').trim();
+                    if (!text) {
+                        alert('先粘贴正文');
+                        return;
                     }
-                });
-                if(!res.ok) throw new Error('服务器返回 '+res.status);
-                const data = await res.json();
-                if(data.code === 200){
-                    document.getElementById('complianceResult').innerHTML = `<div style="color:green">合规检查完成</div><pre style="white-space:pre-wrap; background:#f5f5f5; padding:10px; border-radius:8px; margin-top:8px; font-size:0.9rem">${escapeHtml(data.content)}</pre>`;
-                } else {
-                    document.getElementById('complianceResult').innerHTML = `<div style="color:#b44">检查失败</div><div>错误：${data.message||'未知错误'}</div>`;
+                    this.checkTextLoading = true;
+                    this.checkError = '';
+                    this.checkPayload = null;
+                    fetch('/check/check/', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ contract_content: text })
+                    })
+                        .then((res) => res.json().then((j) => ({ body: j })))
+                        .then((r) => { this.applyCheckResponse(r.body); })
+                        .catch((e) => { this.checkError = e.message || String(e); })
+                        .finally(() => { this.checkTextLoading = false; });
+                },
+                applyCheckResponse(data) {
+                    this.checkPayload = data;
+                    if (data.code === 200 && data.data) {
+                        this.checkError = '';
+                        return;
+                    }
+                    let msg = data.message || data.error || '';
+                    if (data.errors) msg += ' ' + JSON.stringify(data.errors);
+                    if (data.code === 500 && data.error) msg = (data.message || '') + ' — ' + data.error;
+                    this.checkError = msg || '检查失败';
                 }
-            }catch(e){
-                document.getElementById('complianceResult').textContent = '检查失败：' + e.message;
             }
-        });
+        }).mount('#app');
     </script>
 </body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 </html>

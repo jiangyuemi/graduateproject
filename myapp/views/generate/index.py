@@ -21,7 +21,11 @@ class GenerateHandler(APIView):
                 request=GenerateSerializer,
             )
     def post(self, request):
-        demand = request.data.get("demand")
+        # 使用 Serializer 做基础校验，避免 demand=None 导致后续拼接异常
+        ser = GenerateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        demand = ser.validated_data["demand"].strip()
+        base_demand = demand
         
         # 初始化RAG和合规检查器
         rag = get_rag()
@@ -29,16 +33,18 @@ class GenerateHandler(APIView):
         
         max_iterations = 2  # 最大迭代次数，避免无限循环
         iteration = 0
-        current_demand = demand
+        current_demand = base_demand
         final_contract = None
         iteration_history = []
+        last_generated_contract = None
         
         while iteration < max_iterations:
             iteration += 1
             
             # 使用RAG生成合同
             rag_result = rag.query(current_demand)
-            generated_contract = rag_result.get("result", "")
+            generated_contract = (rag_result.get("result", "") or "").strip()
+            last_generated_contract = generated_contract
             
             # 记录本次迭代
             iteration_info = {
@@ -63,6 +69,11 @@ class GenerateHandler(APIView):
             # 如果没有问题，结束循环
             if not issues:
                 final_contract = generated_contract
+                # 只有合规内容才允许缓存“答案内容”（激进语义缓存用）
+                # 同时缓存原始需求与本次迭代需求（含反馈）的结果，兼顾命中率与可控性
+                rag.cache_compliant_answer_only(demand, final_contract)
+                if current_demand != base_demand:
+                    rag.cache_compliant_answer_only(current_demand, final_contract)
                 break
             
             # 如果有问题，构造新的需求，包含问题反馈
@@ -71,18 +82,23 @@ class GenerateHandler(APIView):
                 problem_descriptions.append(f"{issue['message']} (严重程度: {issue['severity']})")
             
             feedback = f"发现以下合规性问题：{'；'.join(problem_descriptions)}。请重新生成符合法律法规的租房合同。"
-            current_demand = f"{demand}\n\n{feedback}"
+            # 每轮都以原始需求为基底拼接本轮反馈，避免反馈无限膨胀
+            current_demand = f"{base_demand}\n\n{feedback}"
         
         # 返回最终结果
         response_data = {
-            "final_contract": final_contract,
+            # 若未通过合规，也返回最后一次生成结果，便于用户预览/继续调整需求
+            "final_contract": final_contract if final_contract is not None else last_generated_contract,
             "iterations": iteration_history,
             "total_iterations": iteration,
             "success": final_contract is not None
         }
         
-        if not final_contract:
-            response_data["message"] = f"在{max_iterations}次迭代后仍未生成合规合同，请检查需求或联系管理员。"
+        if final_contract is None:
+            response_data["message"] = (
+                f"在{max_iterations}次迭代后仍未生成合规合同，已返回最后一次生成的条款供参考；"
+                "请根据问题反馈继续完善需求或联系管理员。"
+            )
         
         return Response(data=response_data)
     

@@ -8,16 +8,18 @@ from langchain_core.output_parsers import StrOutputParser
 
 class RentalContractChecker:
     def __init__(self):
-        # 初始化AI模型
+        # 初始化AI模型（审查是主要耗时点，可用更快模型）
+        review_model = os.getenv("CHECK_REVIEW_MODEL", "qwen3.5-plus").strip() or "qwen3.5-plus"
         self.llm = ChatOpenAI(
-            model="qwen3.5-plus",
-            temperature=0.1,
+            model=review_model,
+            temperature=0.0,
             api_key=os.getenv("LLM_API_KEY"),
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         )
         self.output_parser = StrOutputParser()
         
         # 规则库
+        #region
         self.rules = [
             # 一、主体与合法性规则（R001 - R005）
             {
@@ -273,11 +275,57 @@ class RentalContractChecker:
                 "field": "usage",
                 "severity": "low",
                 "message": "未明确房屋使用规则"
+            },
+            # 八、信息格式验证规则（R031 - R035）
+            {
+                "rule_id": "R031",
+                "name": "出租方电话号码格式必须正确",
+                "type": "format",
+                "field": "parties.landlord",
+                "pattern": r"1[3-9]\d{9}",
+                "severity": "medium",
+                "message": "出租方电话号码格式不正确"
+            },
+            {
+                "rule_id": "R032",
+                "name": "承租方电话号码格式必须正确",
+                "type": "format",
+                "field": "parties.tenant",
+                "pattern": r"1[3-9]\d{9}",
+                "severity": "medium",
+                "message": "承租方电话号码格式不正确"
+            },
+            {
+                "rule_id": "R033",
+                "name": "地址信息必须完整",
+                "type": "format",
+                "field": "property",
+                "pattern": r"^(?!.*XX).*市.*区.*路.*号",
+                "severity": "medium",
+                "message": "房屋地址信息不完整或包含占位符"
+            },
+            {
+                "rule_id": "R034",
+                "name": "租金金额必须为正数",
+                "type": "format",
+                "field": "rent.amount",
+                "pattern": r"^\d+(\.\d{1,2})?$",
+                "severity": "high",
+                "message": "租金金额格式不正确"
+            },
+            {
+                "rule_id": "R035",
+                "name": "押金金额必须为正数",
+                "type": "format",
+                "field": "deposit.amount",
+                "pattern": r"^\d+(\.\d{1,2})?$",
+                "severity": "high",
+                "message": "押金金额格式不正确"
             }
         ]
-        
-        #region
+        #endregion
         # 合同内容提取提示模板（更新为匹配规则字段）
+        #region
         self.extraction_prompt = ChatPromptTemplate.from_template("""
         请从以下租房合同中提取关键信息，按照JSON格式输出。确保字段名称与以下结构匹配：
         
@@ -406,6 +454,12 @@ class RentalContractChecker:
         - reason: 一句话说明原因（不超过50字，不得编造法律条文）
         """)
         #endregion
+
+        # 预构建 chain，避免每次调用都重新拼装
+        self._extraction_chain = self.extraction_prompt | self.llm | self.output_parser
+        self._clause_split_chain = self.clause_split_prompt | self.llm | self.output_parser
+        self._single_review_chain = self.semantic_review_prompt | self.llm | self.output_parser
+        self._batch_review_chain = self.batch_semantic_review_prompt | self.llm | self.output_parser
     def check_compliance(self, contract_content: str) -> Dict[str, Any]:
         """
         检查租房合同的合规性
@@ -418,8 +472,7 @@ class RentalContractChecker:
         """
         try:
             # 步骤1: 解析模块（NLP） - 结构化合同（JSON）
-            extraction_chain = self.extraction_prompt | self.llm | self.output_parser
-            extracted_info_raw = extraction_chain.invoke({"contract_content": contract_content})
+            extracted_info_raw = self._extraction_chain.invoke({"contract_content": contract_content})
             
             # 解析提取的信息
             try:
@@ -477,34 +530,53 @@ class RentalContractChecker:
             if rule_type == "required":
                 field = rule["field"]
                 if not self.check_required_field(structured_data, field):
+                    clause = self.extract_relevant_clause(contract_content, rule["name"], rule_id)
                     issues.append({
                         "rule_id": rule_id,
                         "message": message,
-                        "severity": severity
+                        "severity": severity,
+                        "clause": clause
                     })
             elif rule_type == "numeric":
                 condition = rule["condition"]
                 if not self.check_numeric_condition(structured_data, condition):
+                    clause = self.extract_relevant_clause(contract_content, rule["name"], rule_id)
                     issues.append({
                         "rule_id": rule_id,
                         "message": message,
-                        "severity": severity
+                        "severity": severity,
+                        "clause": clause
                     })
             elif rule_type == "forbidden":
                 pattern = rule["pattern"]
                 if re.search(pattern, contract_content, re.IGNORECASE):
+                    clause = self.extract_relevant_clause(contract_content, rule["name"], rule_id)
                     issues.append({
                         "rule_id": rule_id,
                         "message": message,
-                        "severity": severity
+                        "severity": severity,
+                        "clause": clause
                     })
             elif rule_type == "logic":
                 condition = rule["condition"]
                 if not self.check_logic_condition(structured_data, condition):
+                    clause = self.extract_relevant_clause(contract_content, rule["name"], rule_id)
                     issues.append({
                         "rule_id": rule_id,
                         "message": message,
-                        "severity": severity
+                        "severity": severity,
+                        "clause": clause
+                    })
+            elif rule_type == "format":
+                field = rule["field"]
+                pattern = rule["pattern"]
+                if not self.check_format_condition(structured_data, field, pattern):
+                    clause = self.extract_relevant_clause(contract_content, rule["name"], rule_id)
+                    issues.append({
+                        "rule_id": rule_id,
+                        "message": message,
+                        "severity": severity,
+                        "clause": clause
                     })
         
         return issues
@@ -521,6 +593,58 @@ class RentalContractChecker:
             else:
                 return False
         return current is not None and str(current).strip() != ""
+
+    def get_field_value(self, data: Dict[str, Any], field_path: str) -> Optional[Any]:
+        """
+        根据点路径（如 rent.amount / parties.tenant）从结构化数据中取值。
+
+        - 支持 dict 逐层取值
+        - 支持 list 的数字下标（如 items.0.name）
+        - 找不到路径或值为空时返回 None
+        - 若结果看起来是数值字符串，会尽量转换为 float，便于数值规则比较
+        """
+        if data is None or not field_path:
+            return None
+
+        current: Any = data
+        for key in field_path.split("."):
+            if current is None:
+                return None
+
+            if isinstance(current, dict):
+                if key not in current:
+                    return None
+                current = current[key]
+                continue
+
+            if isinstance(current, list):
+                if not key.isdigit():
+                    return None
+                idx = int(key)
+                if idx < 0 or idx >= len(current):
+                    return None
+                current = current[idx]
+                continue
+
+            return None
+
+        if current is None:
+            return None
+
+        if isinstance(current, str):
+            s = current.strip()
+            if s == "":
+                return None
+
+            num_match = re.search(r"-?\d+(?:\.\d+)?", s.replace(",", ""))
+            if num_match:
+                try:
+                    return float(num_match.group(0))
+                except ValueError:
+                    return s
+            return s
+
+        return current
     
     def check_numeric_condition(self, data: Dict[str, Any], condition: Dict[str, Any]) -> bool:
         """
@@ -570,25 +694,139 @@ class RentalContractChecker:
             # 简单检查：如果有违约金，且没有房东违约条款，则认为不对等
             return "amount" in penalty and penalty["amount"] is not None
         elif condition == "termination_not_equal":
-            # 检查解约权利是否对等
+            # 检查解约/变更权利是否对双方均有表述（兼容 房东/租客 与 甲方/乙方）
             termination = data.get("termination", {})
-            conditions = termination.get("conditions", "")
-            # 简单检查：如果只提到房东或租客一方，则不对等
-            return "双方" in conditions or ("房东" in conditions and "租客" in conditions)
+            conditions = str(termination.get("conditions", "") or "")
+            if not conditions.strip():
+                return False
+            if "双方" in conditions:
+                return True
+            if "房东" in conditions and "租客" in conditions:
+                return True
+            if "甲方" in conditions and "乙方" in conditions:
+                return True
+            return False
         return True
     
-    def get_field_value(self, data: Dict[str, Any], field_path: str) -> Any:
+    def check_format_condition(self, data: Dict[str, Any], field_path: str, pattern: str) -> bool:
         """
-        获取字段值
+        检查格式条件
         """
-        keys = field_path.split('.')
-        current = data
-        for key in keys:
-            if isinstance(current, dict) and key in current:
-                current = current[key]
-            else:
-                return None
-        return current
+        field_value = self.get_field_value(data, field_path)
+        if field_value is None:
+            return True  # 如果字段不存在，不触发格式检查
+        
+        return bool(re.search(pattern, str(field_value)))
+
+    def _extract_phone_clause(self, contract_content: str, rule_id: str) -> Optional[str]:
+        """
+        定位「联系方式」中的电话（电话：/手机：），避免命中「电话费」等条款。
+        签名区常见一行两个「电话：」，按出现顺序对应甲/乙双方。
+        """
+        phone_contact = re.compile(r"电话[：:]\s*([1*●][0-9\*●]{4,})")
+        lines: List[str] = []
+        for raw in contract_content.splitlines():
+            line = raw.strip()
+            if not line or "电话" not in line:
+                continue
+            if "电话费" in line and not phone_contact.search(line):
+                continue
+            if phone_contact.search(line):
+                lines.append(line)
+        if not lines:
+            return None
+        tail = lines[-1]
+        matches = list(phone_contact.finditer(tail))
+        if not matches:
+            return tail
+        if len(matches) >= 2:
+            if rule_id == "R031":
+                return tail[: matches[1].start()].rstrip()
+            return tail[matches[1].start() :].strip()
+        return tail
+
+    def extract_relevant_clause(self, contract_content: str, rule_name: str, rule_id: Optional[str] = None) -> str:
+        """
+        从合同内容中提取与规则最相关的语句；必要时按 rule_id 走专门逻辑。
+        """
+        if rule_id in ("R031", "R032"):
+            phone = self._extract_phone_clause(contract_content, rule_id)
+            if phone:
+                return phone
+
+        sentences = re.split(r'[。！？\n]', contract_content)
+
+        # R026：优先定位「第七条 / 租赁双方的变更」，避免只命中含「解除」等泛词的其他条款
+        if rule_name == "解约责任必须对等":
+            for sentence in sentences:
+                st = sentence.strip()
+                if not st:
+                    continue
+                if "第七条" in st or "租赁双方的变更" in st:
+                    return st
+
+        # 根据规则名称提取关键词
+        keywords = {
+            "必须存在出租人": ["出租方", "甲方"],
+            "必须存在承租人": ["承租方", "乙方"],
+            "出租人必须有处分权": ["转租"],
+            "房屋用途必须合法": ["违法用途", "商业经营"],
+            "禁止群租风险": ["多人合租"],
+            "必须约定租金": ["租金", "月租金"],
+            "必须约定租期": ["租赁期限", "租期"],
+            "必须约定支付周期": ["支付周期", "交纳期限"],
+            "必须约定押金": ["押金"],
+            "必须约定交付时间": ["交付时间"],
+            "押金不得超过两个月租金": ["押金", "租金"],
+            "押金必须可退还": ["押金不退", "不予退还"],
+            "押金扣除必须明确": ["押金视情况扣除"],
+            "必须约定押金退还时间": ["押金退还时间"],
+            "禁止单方随意涨租": ["随意调整租金"],
+            "必须明确费用承担": ["费用", "水电"],
+            "禁止模糊费用条款": ["费用按实际情况"],
+            "禁止商用水电未说明": ["商业用电"],
+            "违约金不得过高": ["违约金"],
+            "违约责任必须对等": ["违约责任"],
+            "禁止房东免责": ["房东不承担任何责任"],
+            "必须约定违约情形": ["违约条件"],
+            "禁止模糊违约责任": ["违约责任由租客承担"],
+            "禁止单方随意解约": ["房东可随时解除合同"],
+            "解除条件必须明确": ["解除条件"],
+            "解约责任必须对等": [
+                "第七条",
+                "租赁双方的变更",
+                "解除",
+                "转租",
+                "优先购买",
+                "终止",
+                "解约",
+            ],
+            "必须约定提前通知时间": ["提前通知时间"],
+            "必须约定维修责任": ["维修责任"],
+            "维修责任必须区分": ["所有维修由租客承担"],
+            "必须约定使用限制": ["使用限制"],
+            "出租方电话号码格式必须正确": ["出租方", "甲方", "电话"],
+            "承租方电话号码格式必须正确": ["承租方", "乙方", "电话"],
+            "地址信息必须完整": ["地址", "坐落"],
+            "租金金额必须为正数": ["租金"],
+            "押金金额必须为正数": ["押金"]
+        }
+        
+        rule_keywords = keywords.get(rule_name, [])
+        if not rule_keywords:
+            return "无法定位具体条款"
+
+        # 在合同中搜索包含关键词的句子（任一词命中即候选）
+        phone_fee_noise = re.compile(r"电话[：:]\s*[\d*●]")
+        for sentence in sentences:
+            if not any(keyword in sentence for keyword in rule_keywords):
+                continue
+            if rule_name in ("出租方电话号码格式必须正确", "承租方电话号码格式必须正确"):
+                if "电话费" in sentence and not phone_fee_noise.search(sentence):
+                    continue
+            return sentence.strip()
+
+        return "相关条款未找到"
     
     def review_single_clause(self, clause: str) -> Dict[str, Any]:
         """
@@ -602,16 +840,21 @@ class RentalContractChecker:
         Returns:
             审查结果字典，包含风险判断、类型、等级和原因
         """
-        print("开始审查单个条款")
+        norm = (clause or "").strip()
+        if not norm:
+            return {"risk": False, "type": "无", "level": "low", "reason": "条款为空"}
+
         try:
-            review_chain = self.semantic_review_prompt | self.llm | self.output_parser
-            review_result = review_chain.invoke({"clause": clause})
+            review_result = self._single_review_chain.invoke({"clause": norm})
             
             review_data = json.loads(review_result)
-            print("结束审查单个条款")
-            return review_data
-        except json.JSONDecodeError as e:
-            print("结束审查单个条款（解析错误）", str(e))
+            return review_data if isinstance(review_data, dict) else {
+                "risk": False,
+                "type": "解析错误",
+                "level": "low",
+                "reason": "无法解析LLM响应"
+            }
+        except json.JSONDecodeError:
             return {
                 "risk": False,
                 "type": "解析错误",
@@ -619,7 +862,6 @@ class RentalContractChecker:
                 "reason": "无法解析LLM响应"
             }
         except Exception as e:
-            print("结束审查单个条款（系统错误）", repr(e))
             return {
                 "risk": False,
                 "type": "系统错误",
@@ -633,12 +875,10 @@ class RentalContractChecker:
         
         将合同分割成条款，然后批量调用LLM进行审查，减少API调用次数。
         """
-        print("开始应用语义审查")
         issues = []
         
         # 分割合同成条款
-        split_chain = self.clause_split_prompt | self.llm | self.output_parser
-        clauses_text = split_chain.invoke({"contract_content": contract_content})
+        clauses_text = self._clause_split_chain.invoke({"contract_content": contract_content})
         clauses = [clause.strip() for clause in clauses_text.split('\n') if clause.strip()]
         
         # 限制条款数量并批量处理
@@ -654,8 +894,7 @@ class RentalContractChecker:
             clauses_text = "\n".join([f"{j+1}. {clause}" for j, clause in enumerate(batch_clauses)])
             
             # 批量审查
-            review_chain = self.batch_semantic_review_prompt | self.llm | self.output_parser
-            review_result = review_chain.invoke({"clauses_text": clauses_text})
+            review_result = self._batch_review_chain.invoke({"clauses_text": clauses_text})
             
             try:
                 review_data_list = json.loads(review_result)
@@ -673,7 +912,6 @@ class RentalContractChecker:
                 # 如果批量解析失败，回退到单个处理（但为了速度，这里跳过）
                 continue
         
-        print("结束应用语义审查")
         return issues
     
     def determine_risk_level(self, issues: List[Dict[str, Any]]) -> str:
