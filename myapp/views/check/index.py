@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser  # 添加JSON解析器
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiRequest
 from rest_framework import serializers, status
+from rest_framework.permissions import IsAuthenticated
 import os
 import uuid
 from .checkservice.service import RentalContractAgent
@@ -21,6 +22,7 @@ class CheckSerializer(serializers.Serializer):
 
 @extend_schema(tags=["合同合规检查"])
 class CheckHandler(APIView):
+    permission_classes = [IsAuthenticated]
     # 关键：添加解析器以支持文件上传和JSON请求
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     
@@ -112,7 +114,8 @@ class CheckHandler(APIView):
                             "risk_level": check_result.get("risk_level"),
                             "issues": check_result.get("issues", []),
                             "structured_data": check_result.get("structured_data"),
-                            "summary": check_result.get("summary")
+                            "summary": check_result.get("summary"),
+                            "content": contract_content
                         }
                     }
                 else:

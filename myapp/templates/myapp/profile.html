@@ -1,0 +1,384 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}个人中心 - 租房合同工作台{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+.avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2dd4bf 0%, #5eead4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0f172a;
+}
+.profile-info h3 {
+    margin: 0 0 0.5rem;
+    color: var(--text);
+}
+.profile-info p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0.65rem;
+}
+.stat-item .number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--cyan);
+}
+.stat-item .label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+}
+.form-group {
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="page">
+    <div class="shell">
+        <!-- 顶栏导航 -->
+        <div class="top-nav">
+            <a href="/" class="logo">Contract Lab</a>
+            <div class="nav-links">
+                <a href="/api/create/">录入</a>
+                <a href="/api/check/">检查</a>
+                <a href="/api/history/">历史</a>
+                <a href="/api/profile/" class="active">个人</a>
+            </div>
+            <div class="user-menu" v-if="user">
+                <span>${ user.username }</span>
+                <button @click="logout">退出</button>
+            </div>
+            <div class="user-menu" v-else>
+                <button @click="showLogin = true">登录</button>
+                <button @click="showRegister = true">注册</button>
+            </div>
+        </div>
+
+        <div class="glass" v-if="!user">
+            <h2>提示</h2>
+            <p>请先登录后查看个人中心</p>
+            <button class="btn btn-primary" @click="showLogin = true">登录</button>
+        </div>
+
+        <template v-else>
+            <div class="glass profile-card">
+                <div class="avatar" @click="triggerAvatarUpload">
+                    <img v-if="user.avatar" :src="user.avatar" alt="头像" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                    <span v-else>${ user.username ? user.username[0].toUpperCase() : 'U' }</span>
+                    <input type="file" ref="avatarInput" style="display: none;" accept="image/*" @change="handleAvatarUpload">
+                </div>
+                <div class="profile-info">
+                    <h3>${ user.username }</h3>
+                    <p>${ user.email || '未设置邮箱' }</p>
+                    <p>注册时间: ${ user.date_joined ? formatDate(user.date_joined) : '未知' }</p>
+                </div>
+            </div>
+
+            <div class="glass">
+                <h2>使用统计</h2>
+                <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="stat-item">
+                        <div class="number">${ stats.totalContracts }</div>
+                        <div class="label">生成合同</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number">${ stats.checkedContracts }</div>
+                        <div class="label">检查合同</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass">
+                <h2>修改密码</h2>
+                <div class="form-group">
+                    <label class="lbl">当前密码</label>
+                    <input class="inp" type="password" v-model="passwordForm.oldPassword" placeholder="请输入当前密码">
+                </div>
+                <div class="form-group">
+                    <label class="lbl">新密码</label>
+                    <input class="inp" type="password" v-model="passwordForm.newPassword" placeholder="请输入新密码">
+                </div>
+                <div class="form-group">
+                    <label class="lbl">确认新密码</label>
+                    <input class="inp" type="password" v-model="passwordForm.confirmPassword" placeholder="请再次输入新密码">
+                </div>
+                <button class="btn btn-primary" @click="changePassword" :disabled="!canChangePassword">
+                    修改密码
+                </button>
+            </div>
+        </template>
+
+        <!-- 登录模态框 -->
+        <div v-if="showLogin" class="modal-backdrop" @click="showLogin = false">
+            <div class="modal" @click.stop>
+                <h3>登录</h3>
+                <input class="inp" type="text" v-model="loginForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="loginForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="login">登录</button>
+                    <button class="btn btn-ghost" @click="showLogin = false">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册模态框 -->
+        <div v-if="showRegister" class="modal-backdrop" @click="showRegister = false">
+            <div class="modal" @click.stop>
+                <h3>注册</h3>
+                <input class="inp" type="text" v-model="registerForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="registerForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <input class="inp" type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="register">注册</button>
+                    <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+}
+.modal h3 {
+    margin: 0 0 1rem;
+    color: var(--cyan);
+}
+</style>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    compilerOptions: {
+        delimiters: ["${", "}"]
+    },
+    data() {
+        return {
+            user: AuthManager.getUser(),
+            showLogin: false,
+            showRegister: false,
+            loginForm: { username: '', password: '' },
+            registerForm: { username: '', password: '', confirmPassword: '' },
+            stats: {
+                totalContracts: 0,
+                checkedContracts: 0,
+                savedContracts: 0
+            },
+            passwordForm: {
+                oldPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            }
+        };
+    },
+    computed: {
+        canChangePassword() {
+            return this.passwordForm.oldPassword && 
+                   this.passwordForm.newPassword && 
+                   this.passwordForm.confirmPassword &&
+                   this.passwordForm.newPassword === this.passwordForm.confirmPassword;
+        }
+    },
+    mounted() {
+        this.checkLogin();
+        this.loadStats();
+    },
+    methods: {
+        async checkLogin() {
+            if (AuthManager.isLoggedIn()) {
+                this.user = AuthManager.getUser();
+            }
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                } else {
+                    this.user = null;
+                    AuthManager.clearAuth();
+                }
+            } catch (e) {
+                console.log('检查登录状态失败');
+            }
+        },
+        async login() {
+            try {
+                const res = await fetch('/api/user/login/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(this.loginForm)
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                    this.showLogin = false;
+                    this.loadStats();
+                } else {
+                    alert(data.message || '登录失败');
+                }
+            } catch (e) {
+                alert('登录失败');
+            }
+        },
+        async logout() {
+            await fetch('/api/user/logout/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            this.user = null;
+            AuthManager.clearAuth();
+        },
+        async loadStats() {
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200 && data.data.stats) {
+                    this.stats = data.data.stats;
+                    this.user.avatar = data.data.avatar || null;
+                    this.user.date_joined = data.data.date_joined || null;
+                }
+            } catch (e) {
+                console.error('获取统计数据失败:', e);
+            }
+        },
+        triggerAvatarUpload() {
+            this.$refs.avatarInput.click();
+        },
+        async handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 检查文件大小
+            const maxSize = 2 * 1024 * 1024; // 2MB
+            if (file.size > maxSize) {
+                alert('头像文件大小不能超过2MB');
+                return;
+            }
+            
+            // 检查文件类型
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('只支持JPG、PNG、GIF格式的图片');
+                return;
+            }
+            
+            // 读取文件并转换为base64
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Data = e.target.result;
+                
+                try {
+                    const res = await fetch('/api/user/profile/', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ avatar: base64Data })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.code === 200) {
+                        this.user.avatar = data.data.avatar;
+                        alert('头像更新成功');
+                    } else {
+                        alert('头像更新失败: ' + (data.message || '未知错误'));
+                    }
+                } catch (e) {
+                    alert('头像更新失败，请稍后重试');
+                    console.error('上传头像失败:', e);
+                }
+            };
+            reader.readAsDataURL(file);
+        },
+        async changePassword() {
+            if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
+                alert('两次输入的新密码不一致');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/user/change-password/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        old_password: this.passwordForm.oldPassword,
+                        new_password: this.passwordForm.newPassword
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.code === 200) {
+                    alert('密码修改成功');
+                    this.passwordForm = { oldPassword: '', newPassword: '', confirmPassword: '' };
+                } else {
+                    alert(data.message || '密码修改失败');
+                }
+            } catch (e) {
+                alert('密码修改失败，请稍后重试');
+            }
+        },
+        formatDate(dateString) {
+            if (!dateString) return '未知';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN');
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}

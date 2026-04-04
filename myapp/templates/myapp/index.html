@@ -1,1155 +1,286 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>租房合同工作台</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
-    <style>
-        :root {
-            --bg-deep: #07060d;
-            --glass: rgba(255, 255, 255, 0.06);
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --text: #f1f0f7;
-            --muted: #9b96b0;
-            --cyan: #2dd4bf;
-            --violet: #a78bfa;
-            --rose: #fb7185;
-            --amber: #fbbf24;
-            --err: #f87171;
-            --ok: #4ade80;
-        }
-        *, *::before, *::after { box-sizing: border-box; }
-        html { -webkit-font-smoothing: antialiased; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: "Noto Sans SC", system-ui, sans-serif;
-            color: var(--text);
-            background: var(--bg-deep);
-            font-size: 15px;
-            line-height: 1.55;
-        }
-        /* 背景：极光 + 细网格 */
-        .page {
-            position: relative;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        .page::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            background:
-                radial-gradient(ellipse 90% 70% at 10% -10%, rgba(167, 139, 250, 0.35), transparent 50%),
-                radial-gradient(ellipse 70% 50% at 90% 10%, rgba(45, 212, 191, 0.22), transparent 45%),
-                radial-gradient(ellipse 60% 40% at 50% 100%, rgba(251, 113, 133, 0.12), transparent 50%),
-                linear-gradient(180deg, #0c0a14 0%, #07060d 100%);
-            pointer-events: none;
-        }
-        .page::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            opacity: 0.35;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 48px 48px;
-            pointer-events: none;
-        }
-        .shell {
-            position: relative;
-            z-index: 1;
-            max-width: 52rem;
-            margin: 0 auto;
-            padding: 2.5rem 1.35rem 4rem;
-        }
-        /* 顶栏 */
-        .hero {
-            margin-bottom: 2rem;
-        }
-        .kicker {
-            font-family: "Syne", sans-serif;
-            font-size: 0.65rem;
-            font-weight: 700;
-            letter-spacing: 0.35em;
-            color: var(--cyan);
-            margin: 0 0 0.6rem;
-            text-transform: uppercase;
-        }
-        .hero h1 {
-            font-family: "Syne", "Noto Sans SC", sans-serif;
-            font-size: clamp(1.85rem, 5vw, 2.35rem);
-            font-weight: 800;
-            letter-spacing: -0.04em;
-            line-height: 1.1;
-            margin: 0 0 0.65rem;
-            background: linear-gradient(120deg, #fff 0%, #c4b5fd 45%, #5eead4 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .lead {
-            margin: 0;
-            font-size: 0.92rem;
-            color: var(--muted);
-        }
-        /* Tab 胶囊 */
-        .tab-pills {
-            display: flex;
-            gap: 0.35rem;
-            padding: 0.35rem;
-            margin-bottom: 2rem;
-            border-radius: 999px;
-            background: rgba(0, 0, 0, 0.35);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(12px);
-        }
-        .tab-pills button {
-            flex: 1;
-            font: inherit;
-            font-weight: 600;
-            font-size: 0.9rem;
-            padding: 0.65rem 1rem;
-            border: none;
-            border-radius: 999px;
-            background: transparent;
-            color: var(--muted);
-            cursor: pointer;
-            transition: color 0.2s, background 0.2s, box-shadow 0.2s;
-        }
-        .tab-pills button:hover:not(.active) {
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .tab-pills button.active {
-            color: #0f172a;
-            background: linear-gradient(135deg, var(--cyan) 0%, #5eead4 100%);
-            box-shadow: 0 0 24px rgba(45, 212, 191, 0.35);
-        }
-        /* 玻璃面板 */
-        .glass {
-            padding: 1.35rem 1.4rem;
-            border-radius: 1.15rem;
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(16px);
-            margin-bottom: 1.15rem;
-        }
-        .glass h2 {
-            font-family: "Syne", sans-serif;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--violet);
-            margin: 0 0 1rem;
-        }
-        label.lbl {
-            display: block;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--muted);
-            margin-bottom: 0.5rem;
-        }
-        input.inp[type="text"],
-        input.inp[type="number"] {
-            width: 100%;
-            font: inherit;
-            padding: 0.65rem 0.85rem;
-            border-radius: 0.65rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.35);
-            color: var(--text);
-        }
-        textarea.inp, input[type="file"].inp {
-            width: 100%;
-            font: inherit;
-            padding: 0.9rem 1rem;
-            border-radius: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.35);
-            color: var(--text);
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.85rem 1rem;
-        }
-        @media (max-width: 640px) {
-            .form-grid { grid-template-columns: 1fr; }
-        }
-        .form-grid .field-span-2 { grid-column: 1 / -1; }
-        .form-hint {
-            font-size: 0.72rem;
-            color: var(--muted);
-            margin: -0.25rem 0 0.35rem;
-        }
-        .sub-h {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--cyan);
-            margin: 0.5rem 0 0.35rem;
-            letter-spacing: 0.06em;
-        }
-        textarea.inp {
-            min-height: 10rem;
-            resize: vertical;
-            line-height: 1.6;
-        }
-        textarea.inp::placeholder { color: #6b6578; }
-        textarea.inp:focus, input.inp:focus {
-            outline: none;
-            border-color: rgba(45, 212, 191, 0.5);
-            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
-        }
-        .row-btns {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            margin-top: 1rem;
-        }
-        .btn {
-            font: inherit;
-            font-weight: 600;
-            padding: 0.65rem 1.25rem;
-            border-radius: 0.65rem;
-            border: none;
-            cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-        .btn:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-primary {
-            color: #0f172a;
-            background: linear-gradient(135deg, var(--cyan), #5eead4);
-            box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25);
-        }
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 28px rgba(45, 212, 191, 0.35);
-        }
-        .btn-ghost {
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--glass-border);
-        }
-        .btn-ghost:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.12);
-        }
-        .spin {
-            display: inline-block;
-            width: 0.9rem;
-            height: 0.9rem;
-            border: 2px solid rgba(15, 23, 42, 0.2);
-            border-top-color: #0f172a;
-            border-radius: 50%;
-            animation: r 0.55s linear infinite;
-            vertical-align: -0.12rem;
-        }
-        .btn-ghost .spin {
-            border-color: rgba(255, 255, 255, 0.2);
-            border-top-color: var(--cyan);
-        }
-        @keyframes r { to { transform: rotate(360deg); } }
-        .divider {
-            margin: 1.5rem 0 1.25rem;
-            padding-top: 1.25rem;
-            border-top: 1px dashed rgba(255, 255, 255, 0.1);
-        }
-        .msg-err {
-            margin-top: 0.85rem;
-            padding: 0.75rem 1rem;
-            border-radius: 0.65rem;
-            border: 1px solid rgba(248, 113, 113, 0.35);
-            background: rgba(248, 113, 113, 0.08);
-            color: #fecaca;
-            font-size: 0.88rem;
-        }
-        .msg-ok {
-            margin-bottom: 0.85rem;
-            padding: 0.6rem 0.9rem;
-            border-radius: 0.65rem;
-            border: 1px solid rgba(74, 222, 128, 0.35);
-            background: rgba(74, 222, 128, 0.08);
-            color: #bbf7d0;
-            font-size: 0.88rem;
-        }
-        .out {
-            margin-top: 0.5rem;
-            padding: 1.15rem 1.2rem;
-            border-radius: 0.85rem;
-            border: 1px solid rgba(167, 139, 250, 0.25);
-            background: rgba(0, 0, 0, 0.25);
-            white-space: pre-wrap;
-            font-size: 0.9rem;
-            line-height: 1.7;
-            color: #e8e6f0;
-        }
-        .empty-hint {
-            margin-top: 1rem;
-            padding: 2rem 1.25rem;
-            text-align: center;
-            border-radius: 0.85rem;
-            border: 1px dashed rgba(255, 255, 255, 0.12);
-            color: var(--muted);
-            font-size: 0.88rem;
-        }
-        details.iter {
-            margin-top: 1rem;
-            border-radius: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(0, 0, 0, 0.2);
-            font-size: 0.82rem;
-        }
-        details.iter summary {
-            padding: 0.65rem 1rem;
-            cursor: pointer;
-            font-weight: 600;
-            color: var(--amber);
-        }
-        details.iter pre {
-            margin: 0;
-            padding: 0.85rem 1rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            max-height: 9rem;
-            overflow: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            color: #c9c4d8;
-        }
-        .warn { color: #fcd34d; margin: 0.4rem 1rem 0.85rem; font-size: 0.8rem; }
-        .risk {
-            font-family: "Syne", sans-serif;
-            font-size: clamp(1.75rem, 5vw, 2.25rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin: 0.25rem 0 1rem;
-            line-height: 1.2;
-        }
-        .risk.high {
-            background: linear-gradient(90deg, #f87171, #fb7185);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            filter: drop-shadow(0 0 24px rgba(251, 113, 133, 0.35));
-        }
-        .risk.medium {
-            background: linear-gradient(90deg, #fbbf24, #f97316);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .risk.low {
-            background: linear-gradient(90deg, #4ade80, #2dd4bf);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        blockquote.sum {
-            margin: 0 0 1rem;
-            padding: 1rem 1.1rem;
-            border-radius: 0.75rem;
-            border-left: 3px solid var(--violet);
-            background: rgba(139, 92, 246, 0.08);
-            font-size: 0.88rem;
-            color: #ddd8ec;
-        }
-        ul.issues {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-        ul.issues li {
-            padding: 0.85rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            font-size: 0.88rem;
-        }
-        ul.issues li:last-child { border-bottom: none; }
-        ul.issues .id {
-            display: inline-block;
-            margin-right: 0.35rem;
-            padding: 0.15rem 0.45rem;
-            border-radius: 0.35rem;
-            font-size: 0.72rem;
-            font-weight: 700;
-            background: rgba(167, 139, 250, 0.2);
-            color: #ddd6fe;
-        }
-        ul.issues .cl {
-            display: block;
-            margin-top: 0.45rem;
-            color: var(--muted);
-            font-size: 0.82rem;
-            line-height: 1.45;
-        }
-        details.raw {
-            margin-top: 1rem;
-            font-size: 0.75rem;
-            color: var(--muted);
-        }
-        details.raw pre {
-            margin: 0.5rem 0 0;
-            padding: 0.85rem;
-            border-radius: 0.65rem;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            max-height: 12rem;
-            overflow: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            color: #a8a3bc;
-        }
-        .file-note {
-            font-size: 0.8rem;
-            color: var(--muted);
-            margin-top: 0.85rem;
-            padding-top: 0.85rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .btn-primary:hover:not(:disabled) { transform: none; }
-            .spin { animation: none; opacity: 0.6; }
-        }
-    </style>
-</head>
-<body>
-    {% csrf_token %}
-    {% verbatim %}
-    <div id="app" class="page">
-        <div class="shell">
-            <header class="hero">
-                <p class="kicker">Contract Lab</p>
-                <h1>租房合同工作台</h1>
-                <p class="lead">填好要素生成标准合同 · 补充条款走知识库 · 上传或粘贴可审查</p>
-            </header>
+{% extends 'myapp/base.html' %}
 
-            <nav class="tab-pills" aria-label="功能">
-                <button type="button" :class="{ active: tab === 'gen' }" @click="tab = 'gen'">生成</button>
-                <button type="button" :class="{ active: tab === 'check' }" @click="tab = 'check'">检查</button>
-            </nav>
+{% block title %}首页 - 租房合同工作台{% endblock %}
 
-            <section v-show="tab === 'gen'">
-                <div class="glass">
-                    <h2>合同要素</h2>
+{% block extra_css %}
+<style>
+.hero {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+.hero h1 {
+    font-family: "Syne", sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #2dd4bf 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero p {
+    color: var(--muted);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+.feature-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: var(--text);
+}
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 40px rgba(45, 212, 191, 0.15);
+}
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+.feature-card h3 {
+    margin: 0 0 0.5rem;
+    color: var(--cyan);
+}
+.feature-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+.cta-section {
+    text-align: center;
+    padding: 2rem;
+    margin-top: 2rem;
+}
+.cta-section .btn {
+    font-size: 1.1rem;
+    padding: 0.85rem 2rem;
+}
+</style>
+{% endblock %}
 
-                    <p class="sub-h">当事人</p>
-                    <div class="form-grid">
-                        <div>
-                            <label class="lbl" for="landlordName">出租方（甲方）</label>
-                            <input id="landlordName" class="inp" type="text" v-model.trim="form.landlordName" placeholder="姓名或名称" autocomplete="name" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="tenantName">承租方（乙方）</label>
-                            <input id="tenantName" class="inp" type="text" v-model.trim="form.tenantName" placeholder="姓名或名称" autocomplete="name" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="landlordIdNo">甲方身份证号</label>
-                            <input id="landlordIdNo" class="inp" type="text" v-model.trim="form.landlordIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
-                        </div>
-                        <div>
-                            <label class="lbl" for="tenantIdNo">乙方身份证号</label>
-                            <input id="tenantIdNo" class="inp" type="text" v-model.trim="form.tenantIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
-                        </div>
-                        <div>
-                            <label class="lbl" for="landlordPhone">甲方电话</label>
-                            <input id="landlordPhone" class="inp" type="text" v-model.trim="form.landlordPhone" placeholder="必填" inputmode="tel" required />
-                        </div>
-                        <div>
-                            <label class="lbl" for="tenantPhone">乙方电话</label>
-                            <input id="tenantPhone" class="inp" type="text" v-model.trim="form.tenantPhone" placeholder="必填" inputmode="tel" required />
-                        </div>
-                    </div>
-
-                    <p class="sub-h">房屋与用途</p>
-                    <div class="form-grid">
-                        <div>
-                            <label class="lbl" for="city">市</label>
-                            <input id="city" class="inp" type="text" v-model.trim="form.city" placeholder="如 杭州" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="addressDetail">坐落（区/路/门牌等）</label>
-                            <input id="addressDetail" class="inp" type="text" v-model.trim="form.addressDetail" placeholder="详细地址" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="roomCount">间数</label>
-                            <input id="roomCount" class="inp" type="text" v-model.trim="form.roomCount" placeholder="如 2" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="buildingAreaSqm">建筑面积（㎡）</label>
-                            <input id="buildingAreaSqm" class="inp" type="text" v-model.trim="form.buildingAreaSqm" placeholder="如 65" />
-                        </div>
-                        <div class="field-span-2">
-                            <label class="lbl" for="usagePurpose">用途</label>
-                            <input id="usagePurpose" class="inp" type="text" v-model.trim="form.usagePurpose" placeholder="如 居住" />
-                        </div>
-                    </div>
-
-                    <p class="sub-h">租期</p>
-                    <div class="form-grid">
-                        <div>
-                            <label class="lbl" for="leaseMonths">租期共（月）</label>
-                            <input id="leaseMonths" class="inp" type="text" v-model.trim="form.leaseMonths" placeholder="如 12" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="lateRentMonths">拖欠租金满（月）甲方可解约</label>
-                            <input id="lateRentMonths" class="inp" type="text" v-model.trim="form.lateRentMonths" placeholder="如 2" />
-                        </div>
-                        <div>
-                            <label class="lbl">起租日</label>
-                            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                <input class="inp" type="text" v-model.trim="form.leaseStartYear" placeholder="年" aria-label="起租年" />
-                                <input class="inp" type="text" v-model.trim="form.leaseStartMonth" placeholder="月" aria-label="起租月" />
-                                <input class="inp" type="text" v-model.trim="form.leaseStartDay" placeholder="日" aria-label="起租日" />
-                            </div>
-                        </div>
-                        <div>
-                            <label class="lbl">到期日</label>
-                            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                <input class="inp" type="text" v-model.trim="form.leaseEndYear" placeholder="年" aria-label="到期年" />
-                                <input class="inp" type="text" v-model.trim="form.leaseEndMonth" placeholder="月" aria-label="到期月" />
-                                <input class="inp" type="text" v-model.trim="form.leaseEndDay" placeholder="日" aria-label="到期日" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <p class="sub-h">租金与押金</p>
-                    <div class="form-grid">
-                        <div>
-                            <label class="lbl" for="monthlyRent">月租金（元）</label>
-                            <input id="monthlyRent" class="inp" type="text" v-model.trim="form.monthlyRent" placeholder="数字" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="monthlyRentChinese">大写</label>
-                            <input id="monthlyRentChinese" class="inp" type="text" v-model.trim="form.monthlyRentChinese" placeholder="如 叁仟元整" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="rentPayCycle">支付周期</label>
-                            <input id="rentPayCycle" class="inp" type="text" v-model.trim="form.rentPayCycle" placeholder="如 月 / 季" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="rentPayDeadline">交纳期限说明</label>
-                            <input id="rentPayDeadline" class="inp" type="text" v-model.trim="form.rentPayDeadline" placeholder="如 每月5日前" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="deposit">押金（元）</label>
-                            <input id="deposit" class="inp" type="text" v-model.trim="form.deposit" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="depositChinese">押金大写</label>
-                            <input id="depositChinese" class="inp" type="text" v-model.trim="form.depositChinese" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="penaltyAmount">违约金（元）</label>
-                            <input id="penaltyAmount" class="inp" type="text" v-model.trim="form.penaltyAmount" placeholder="第八条约定" />
-                        </div>
-                    </div>
-
-                    <p class="sub-h">签署日期</p>
-                    <div class="form-grid">
-                        <div>
-                            <label class="lbl" for="signYear">年</label>
-                            <input id="signYear" class="inp" type="text" v-model.trim="form.signYear" placeholder="如 2026" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="signMonth">月</label>
-                            <input id="signMonth" class="inp" type="text" v-model.trim="form.signMonth" />
-                        </div>
-                        <div>
-                            <label class="lbl" for="signDay">日</label>
-                            <input id="signDay" class="inp" type="text" v-model.trim="form.signDay" />
-                        </div>
-                    </div>
-
-                    <p class="sub-h">补充 / 个性化条款（可选）</p>
-                    <label class="lbl" for="extraClauses">说明给模型</label>
-                    <p class="form-hint">将结合知识库生成「补充约定」类内容；不需要可留空。</p>
-                    <textarea id="extraClauses" class="inp" v-model="extraClauses" rows="4" placeholder="例：允许乙方饲养宠物；乙方需购买租客险；提前解约需提前30日通知…"></textarea>
-
-                    <details class="iter" style="margin-top: 1rem;">
-                        <summary>预览已填标准合同正文（不发请求也可查看）</summary>
-                        <pre style="margin:0;padding:0.85rem 1rem;border:none;background:transparent;max-height:14rem;">{{ assembledContract }}</pre>
-                    </details>
-
-                    <div class="row-btns">
-                        <button type="button" class="btn btn-primary" :disabled="genLoading || !canGenerate" @click="runGenerate">
-                            <span v-if="genLoading" class="spin"></span>
-                            {{ genLoading ? '生成中' : '生成合同' }}
-                        </button>
-                    </div>
-                    <p v-if="genError" class="msg-err">{{ genError }}</p>
-                </div>
-
-                <div class="glass">
-                    <h2>Output</h2>
-                    <template v-if="genResult">
-                        <p v-if="genResult.success" class="msg-ok">合规检查通过</p>
-                        <p v-else class="msg-err">{{ genResult.message || '未通过审查' }}</p>
-                        <div class="out">{{ displayFinalContract }}</div>
-                        <details v-if="genResult.iterations?.length" class="iter">
-                            <summary>查看迭代 · {{ genResult.total_iterations }} 轮</summary>
-                            <div v-for="(it, idx) in genResult.iterations" :key="idx">
-                                <pre>{{ it.demand }}</pre>
-                                <p v-if="it.issues?.length" class="warn">{{ formatIssues(it.issues) }}</p>
-                            </div>
-                        </details>
-                    </template>
-                    <div v-else class="empty-hint">生成结果会出现在这里，像一份真正的合同草稿。</div>
-                </div>
-            </section>
-
-            <section v-show="tab === 'check'">
-                <div class="glass">
-                    <h2>Ingest</h2>
-                    <label class="lbl">上传文件</label>
-                    <input type="file" class="inp" ref="fileInput" accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                    <div class="row-btns">
-                        <button type="button" class="btn btn-primary" :disabled="checkFileLoading" @click="runCheckFile">
-                            <span v-if="checkFileLoading" class="spin"></span>
-                            {{ checkFileLoading ? '解析中' : '检查文件' }}
-                        </button>
-                    </div>
-                    <div class="divider">
-                        <label class="lbl" for="paste">或直接粘贴全文</label>
-                        <textarea id="paste" class="inp" v-model="contractContent" placeholder="把整份合同贴进来…"></textarea>
-                        <div class="row-btns">
-                            <button type="button" class="btn btn-ghost" :disabled="checkTextLoading" @click="runCheckText">
-                                <span v-if="checkTextLoading" class="spin"></span>
-                                {{ checkTextLoading ? '分析中' : '检查文本' }}
-                            </button>
+{% block content %}
+<div id="app" class="page">
+    <div class="shell">
+        <!-- 顶栏导航 -->
+        <div class="top-nav">
+            <a href="/" class="logo">Contract Lab</a>
+            <div class="nav-links">
+                <a href="/api/create/">录入</a>
+                <a href="/api/check/">检查</a>
+                <a href="/api/history/">历史</a>
+                <a href="/api/profile/">个人</a>
             </div>
+            <div class="user-menu" v-if="user">
+                <span>${ user.username }</span>
+                <button @click="logout">退出</button>
             </div>
-                    <p v-if="checkError" class="msg-err">{{ checkError }}</p>
+            <div class="user-menu" v-else>
+                <button @click="showLogin = true">登录</button>
+                <button @click="showRegister = true">注册</button>
+            </div>
         </div>
 
-                <div class="glass">
-                    <h2>Verdict</h2>
-                    <template v-if="checkPayload && checkPayload.code === 200 && checkPayload.data">
-                        <p v-if="checkPayload.data.risk_level" :class="riskLineClass(checkPayload.data.risk_level)">
-                            {{ riskLabel(checkPayload.data.risk_level) }}
-                        </p>
-                        <blockquote v-if="checkPayload.data.summary" class="sum">{{ checkPayload.data.summary }}</blockquote>
-                        <ul v-if="checkPayload.data.issues?.length" class="issues">
-                            <li v-for="(issue, i) in checkPayload.data.issues" :key="i">
-                                <span class="id">{{ issue.rule_id || '—' }}</span>
-                                {{ issue.message }}
-                                <span v-if="issue.clause" class="cl">{{ issue.clause }}</span>
-                            </li>
-                        </ul>
-                        <details v-if="checkPayload.data.structured_data" class="raw">
-                            <summary>结构化 JSON</summary>
-                            <pre>{{ structuredJson }}</pre>
-                        </details>
-                        <p v-if="checkPayload.file_info" class="file-note">{{ checkPayload.file_info.original_name }}</p>
-                    </template>
-                    <div v-else-if="!checkError && !checkPayload" class="empty-hint">跑完检查之后，风险等级和条款问题会集中展示在这里。</div>
+        <!-- 欢迎区域 -->
+        <div class="hero">
+            <h1>租房合同工作台</h1>
+            <p>智能生成、合规检查、一键导出，让租房合同处理变得简单高效</p>
+            <div class="cta-section" v-if="!user">
+                <button class="btn btn-primary" @click="showLogin = true">立即开始</button>
             </div>
-            </section>
+        </div>
+
+        <!-- 功能卡片 -->
+        <div class="features">
+            <a href="/api/create/" class="feature-card">
+                <div class="feature-icon">📝</div>
+                <h3>信息录入</h3>
+                <p>填写合同基本信息，快速录入当事人和房屋信息</p>
+            </a>
+            <a href="/api/check/" class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>合规检查</h3>
+                <p>智能审查合同条款，识别风险并提供修改建议</p>
+            </a>
+            <a href="/api/history/" class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3>历史记录</h3>
+                <p>查看和管理所有历史合同，支持再次编辑和导出</p>
+            </a>
+            <a href="/api/profile/" class="feature-card">
+                <div class="feature-icon">👤</div>
+                <h3>个人中心</h3>
+                <p>管理个人信息、查看使用统计、修改密码</p>
+            </a>
+        </div>
+
+        <!-- 登录模态框 -->
+        <div v-if="showLogin" class="modal-backdrop" @click="showLogin = false">
+            <div class="modal" @click.stop>
+                <h3>登录</h3>
+                <input class="inp" type="text" v-model="loginForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="loginForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="login">登录</button>
+                    <button class="btn btn-ghost" @click="showLogin = false">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册模态框 -->
+        <div v-if="showRegister" class="modal-backdrop" @click="showRegister = false">
+            <div class="modal" @click.stop>
+                <h3>注册</h3>
+                <input class="inp" type="text" v-model="registerForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="registerForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <input class="inp" type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="register">注册</button>
+                    <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+                </div>
+            </div>
         </div>
     </div>
-    {% endverbatim %}
+</div>
 
-    <script>
-        const { createApp } = Vue;
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+}
+.modal h3 {
+    margin: 0 0 1rem;
+    color: var(--cyan);
+}
+</style>
 
-        function getCookie(name) {
-            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-            return v ? v.pop() : '';
-        }
+<script>
+const { createApp } = Vue;
 
-        function stripThink(input) {
-            if (!input || typeof input !== 'string') return input;
-            return input
-                .replace(/<redacted_thinking>[\s\S]*?<\/redacted_thinking>/gi, '')
-                .replace(/<redacted_thinking>[\s\S]*?<\/think>/gi, '')
-                .trim();
-        }
-
-        createApp({
-            data() {
-                return {
-                    tab: 'gen',
-                    genLoading: false,
-                    genError: '',
-                    genResult: null,
-                    extraClauses: '',
-                    form: {
-                        landlordName: '',
-                        tenantName: '',
-                        landlordIdNo: '',
-                        tenantIdNo: '',
-                        landlordPhone: '',
-                        tenantPhone: '',
-                        city: '',
-                        addressDetail: '',
-                        roomCount: '',
-                        buildingAreaSqm: '',
-                        usagePurpose: '',
-                        leaseMonths: '',
-                        lateRentMonths: '',
-                        leaseStartYear: '',
-                        leaseStartMonth: '',
-                        leaseStartDay: '',
-                        leaseEndYear: '',
-                        leaseEndMonth: '',
-                        leaseEndDay: '',
-                        monthlyRent: '',
-                        monthlyRentChinese: '',
-                        rentPayCycle: '月',
-                        rentPayDeadline: '',
-                        deposit: '',
-                        depositChinese: '',
-                        penaltyAmount: '',
-                        signYear: '',
-                        signMonth: '',
-                        signDay: ''
-                    },
-                    contractContent: '',
-                    checkFileLoading: false,
-                    checkTextLoading: false,
-                    checkError: '',
-                    checkPayload: null
-                };
-            },
-            computed: {
-                assembledContract() {
-                    return this.assembleStandardContract();
-                },
-                canGenerate() {
-                    const f = this.form;
-                    return !!(
-                        f.landlordName &&
-                        f.tenantName &&
-                        f.landlordIdNo &&
-                        f.tenantIdNo &&
-                        f.landlordPhone &&
-                        f.tenantPhone &&
-                        f.city &&
-                        f.addressDetail &&
-                        f.roomCount &&
-                        f.buildingAreaSqm &&
-                        f.usagePurpose &&
-                        f.leaseMonths &&
-                        f.lateRentMonths &&
-                        f.leaseStartYear &&
-                        f.leaseStartMonth &&
-                        f.leaseStartDay &&
-                        f.leaseEndYear &&
-                        f.leaseEndMonth &&
-                        f.leaseEndDay &&
-                        f.monthlyRent &&
-                        f.monthlyRentChinese &&
-                        f.rentPayDeadline &&
-                        f.deposit &&
-                        f.depositChinese &&
-                        f.penaltyAmount &&
-                        f.signYear &&
-                        f.signMonth &&
-                        f.signDay
-                    );
-                },
-                displayFinalContract() {
-                    const base = this.assembleStandardContract();
-                    if (!this.genResult) return base;
-
-                    const extraText = stripThink(this.genResult.final_contract || '').trim();
-                    const formattedExtra = this.formatExtraClauses(extraText, this.genResult?.iterations);
-                    if (!formattedExtra) return base;
-
-                    // 把个性化条款插在签署区之前（即出租方/承租方盖章块之前）
-                    const marker = "出租方：（盖章）";
-                    const idx = base.indexOf(marker);
-                    if (idx >= 0) {
-                        const body = base.slice(0, idx).trimEnd();
-                        const signature = base.slice(idx).trimStart();
-                        return body + '\n\n' + formattedExtra + '\n\n' + signature;
-                    }
-
-                    // 兜底：追加到末尾
-                    return base + '\n\n' + formattedExtra;
-                },
-                structuredJson() {
-                    const sd = this.checkPayload?.data?.structured_data;
-                    if (sd === undefined || sd === null) return '';
-                    try {
-                        return JSON.stringify(sd, null, 2);
-                    } catch (e) {
-                        return String(sd);
-                    }
+createApp({
+    compilerOptions: {
+        delimiters: ['${', '}']
+    },
+    data() {
+        return {
+            user: AuthManager.getUser(),
+            showLogin: false,
+            showRegister: false,
+            loginForm: { username: '', password: '' },
+            registerForm: { username: '', password: '', confirmPassword: '' }
+        };
+    },
+    mounted() {
+        this.checkLogin();
+    },
+    methods: {
+        async checkLogin() {
+            // 首先检查localStorage中的登录状态
+            if (AuthManager.isLoggedIn()) {
+                this.user = AuthManager.getUser();
+            }
+            // 然后向服务器验证登录状态是否仍然有效
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                } else {
+                    // 服务器返回未登录，清除本地状态
+                    this.user = null;
+                    AuthManager.clearAuth();
                 }
-            },
-            methods: {
-                _ph(v, fallback) {
-                    const t = (v || '').toString().trim();
-                    return t || fallback;
-                },
-                numToCn(n) {
-                    // 仅用于 12 起步的条款编号（通常条款条数不多）
-                    const cnNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
-                    if (n < 10) return cnNums[n];
-                    if (n === 10) return "十";
-                    if (n < 20) return "十" + (n === 10 ? "" : cnNums[n % 10]);
-                    if (n < 100) {
-                        const tens = Math.floor(n / 10);
-                        const ones = n % 10;
-                        return cnNums[tens] + "十" + (ones === 0 ? "" : cnNums[ones]);
-                    }
-                    return String(n);
-                },
-                _parseNumberedItems(text) {
-                    // 解析类似：
-                    // - 1. xxx / 2. yyy
-                    // - 1、xxx / 2、yyy
-                    // - 一、xxx / 二、yyy
-                    const lines = String(text || '')
-                        .replace(/\r\n/g, '\n')
-                        .split('\n')
-                        .map((x) => x.trim())
-                        .filter(Boolean);
-
-                    const itemRegex = /^\s*(\d+|[一二三四五六七八九十]{1,3})\s*[、\.\)]\s*(.+)$/;
-                    const items = [];
-                    for (const line of lines) {
-                        const m = line.match(itemRegex);
-                        if (m && m[2]) items.push(m[2].trim());
-                    }
-                    return items;
-                },
-                formatExtraClauses(extraText, iterations) {
-                    if (!extraText || extraText === "（无）") return "";
-
-                    // 如果后端已经输出“第十二条”之类，直接使用
-                    if (/第\s*(\d{1,3}|[一二三四五六七八九十]{2,3}|[一二三四五六七八九十]{1,3})\s*条/.test(extraText)) {
-                        return extraText;
-                    }
-
-                    const items = this._parseNumberedItems(extraText);
-
-                    // 多轮迭代情况下：如果前几轮已经生成了若干“条目”，则本轮条款编号应继续增加。
-                    // 例如：第1轮生成2条（12-13），第2轮再生成2条，应编号为14-15。
-                    let offset = 0;
-                    if (Array.isArray(iterations) && iterations.length >= 2) {
-                        const lastGen = iterations[iterations.length - 1]?.generated_contract || "";
-                        for (let i = 0; i < iterations.length - 1; i++) {
-                            const txt = iterations[i]?.generated_contract || "";
-                            // 避免统计到和 final_contract 相同的那一轮（通常不会发生，但更稳）
-                            if (txt && lastGen && txt.trim() === lastGen.trim()) continue;
-                            offset += this._parseNumberedItems(txt).length;
-                        }
-                    }
-
-                    const startNo = 12 + offset;
-
-                    if (items.length === 0) {
-                        // 单条兜底：包装成第十二条
-                        return `第${this.numToCn(startNo)}条、补充约定：${extraText}`;
-                    }
-
-                    // 多条：从第(startNo)条开始逐条包装
-                    return items
-                        .map((it, idx) => {
-                            const articleNo = startNo + idx;
-                            return `第${this.numToCn(articleNo)}条、补充约定：${it}`;
-                        })
-                        .join("\n\n");
-                },
-                normalizeSupplementNumber(text, targetNo) {
-                    const t = stripThink(text || '').trim();
-                    if (!t) return '';
-
-                    const targetCn = this.numToCn(targetNo);
-
-                    // 优先替换后端常见的“第十二条”
-                    if (/第\s*(十二|12)\s*条/.test(t)) {
-                        return t.replace(/第\s*(十二|12)\s*条/, `第${targetCn}条`);
-                    }
-
-                    // 如果后端已经输出了某个条号（数字/中文），替换为目标条号
-                    if (/第\s*(\d+)\s*条/.test(t) || /第\s*[一二三四五六七八九十]{2,3}\s*条/.test(t)) {
-                        return t.replace(/第\s*(\d+|[一二三四五六七八九十]{2,3})\s*条/, `第${targetCn}条`);
-                    }
-
-                    // 没有条号：包装成补充约定
-                    return `第${targetCn}条、补充约定：${t}`;
-                },
-                assembleStandardContract() {
-                    const f = this.form;
-                    const a = this._ph(f.landlordName, '________');
-                    const b = this._ph(f.tenantName, '________');
-                    const aid = this._ph(f.landlordIdNo, '____________________');
-                    const bid = this._ph(f.tenantIdNo, '____________________');
-                    const city = this._ph(f.city, '________');
-                    const addr = this._ph(f.addressDetail, '________________');
-                    const rooms = this._ph(f.roomCount, '____');
-                    const area = this._ph(f.buildingAreaSqm, '________');
-                    const usage = this._ph(f.usagePurpose, '________');
-                    const months = this._ph(f.leaseMonths, '____');
-                    const sy = this._ph(f.leaseStartYear, '____');
-                    const sm = this._ph(f.leaseStartMonth, '____');
-                    const sd = this._ph(f.leaseStartDay, '____');
-                    const ey = this._ph(f.leaseEndYear, '____');
-                    const em = this._ph(f.leaseEndMonth, '____');
-                    const ed = this._ph(f.leaseEndDay, '____');
-                    const late = this._ph(f.lateRentMonths, '____');
-                    const rent = this._ph(f.monthlyRent, '________');
-                    const rentU = this._ph(f.monthlyRentChinese, '________________');
-                    const payEvery = this._ph(f.rentPayCycle, '月');
-                    const payDl = this._ph(f.rentPayDeadline, '________________');
-                    const dep = this._ph(f.deposit, '____');
-                    const depU = this._ph(f.depositChinese, '__________________');
-                    const pen = this._ph(f.penaltyAmount, '____');
-                    const lp = this._ph(f.landlordPhone, '___________');
-                    const tp = this._ph(f.tenantPhone, '___________');
-                    const sy2 = this._ph(f.signYear, '____');
-                    const sm2 = this._ph(f.signMonth, '____');
-                    const sd2 = this._ph(f.signDay, '____');
-                    return `出租方（以下简称甲方）：${a}，身份证号：${aid}，
-承租方（以下简称乙方）：${b}，身份证号：${bid}，
-
-根据《中华人民共和国民法典》及有关规定，为明确甲、乙双方的权利义务关系，经双方协商一致，签订本合同。
-
-第一条、甲方将自有的坐落在${city}市${addr}的房屋${rooms}间，建筑面积${area}平方米,出租给乙方作${usage}使用。
-
-第二条、租赁期限，租赁期共${months}个月，从${sy}年${sm}月${sd}日至${ey}年${em}月${ed}日。合同期满后，甲方仍继续出租房屋的，乙方拥有优先承租权。
-
-乙方有下列情形之一的，甲方可以终止合同，收回房屋：
-
-1．利用承租房屋进行非法活动，损害公共利益的；
-2．拖欠租金${late}个月的。
-
-第三条、租金和租金交纳期限，甲乙双方议定月租金(人民币)${rent}元(大写${rentU})，租金每${payEvery}支付一次，租金的交纳期限为${payDl}。
-
-第四条、乙方向甲方交纳押金(人民币)${dep}元(大写${depU})。合同到期后当日返还。
-
-第五条、房屋的装修，在不影响房屋主体结构的前提下，乙方可对房屋进行装修或改善增设他物。租赁合同期满，房屋的装修、增设的物品在不影响房屋主体结构的情况下，由乙方自行处理。
-
-第六条、乙方租房期间水、电、电话费、宽带费、物业管理费用由乙方承担。
-
-第七条、租赁双方的变更
-
-1．如甲方按法定手续程序将房产所有权转移给第三方时，在无约定的情况下，本合同对新的房产所有者继续有效；
-2．甲方出售房屋，须在三个月前书面通知乙方，在同等条件下，乙方有优先购买权；
-3、合同期内，乙方如不能再继续经营时，可转让他人经营。
-
-第八条、违约责任
-
-1．租赁双方如有一方未履行第七条约定的有关条款的，违约方赔偿对方${pen}元。
-2．甲方向乙方收取约定租金以外的费用，乙方有权拒付。
-
-第九条、免责条件
-
-1．房屋如因不可抗拒的原因导致损毁或造成乙方损失的，甲乙双方互不承担责任。
-2．因市政建设需要拆除或改造已租赁的房屋，使甲乙双方造成损失，互不承担责任。
-
-因上述原因而终止合同的，租金按实际使用时间计算，多退少补。
-
-第十条、争议解决的方式
-
-本合同在履行中如发生争议，双方应协商解决；协商不成时,也可以向人民法院起诉。
-
-第十一条、本合同未尽事宜，甲乙双方可共同协商，签订补充协议。与本合同具有同等效力。
-
-出租方：（盖章）　　　 承租方：（盖章）
-
-委托代理人：（签名）　 　委托代理人：（签名）
-
-电话：${lp}　　　　　　 电话：${tp}
-
-${sy2}年${sm2}月${sd2}日　　　　　　 ${sy2}年${sm2}月${sd2}日`;
-                },
-                buildGenerateDemand() {
-                    const raw = (this.extraClauses || '').trim();
-                    if (!raw) return '（无）';
-
-                    // 个性化需求可能不止一条：前端先做“条目切分 + 编号”，避免把拼接工作交给大模型
-                    // 支持常见输入：
-                    // - 用换行分条
-                    // - 用中文/英文分号分条（； / ;）
-                    // - 用“1、xxx 2、yyy”或“1. xxx 2. yyy”编号粘贴在同一行
-                    let normalized = raw.replace(/\r\n/g, '\n').replace(/；/g, '\n').replace(/;/g, '\n');
-                    // 在“编号标记”前插入换行，帮助同一行多条切开
-                    normalized = normalized.replace(/(^|\s)([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '\n$2、');
-
-                    const items = normalized
-                        .split('\n')
-                        .map((x) => x.trim())
-                        .filter(Boolean)
-                        .map((x) =>
-                            x.replace(/^\s*([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '')
-                        )
-                        .filter(Boolean);
-
-                    if (!items.length) return '（无）';
-                    if (items.length === 1) return items[0];
-                    return items.map((it, idx) => `${idx + 1}. ${it}`).join('\n');
-                },
-                riskLabel(level) {
-                    const l = String(level || '').toLowerCase();
-                    if (l === 'high' || l === '高') return '高风险';
-                    if (l === 'medium' || l === '中') return '中风险';
-                    return '低风险';
-                },
-                riskLineClass(level) {
-                    const l = String(level || '').toLowerCase();
-                    if (l === 'high' || l === '高') return 'risk high';
-                    if (l === 'medium' || l === '中') return 'risk medium';
-                    return 'risk low';
-                },
-                formatIssues(issues) {
-                    if (!issues?.length) return '';
-                    return issues.map((x) => x.message).join('；');
-                },
-                runGenerate() {
-                    // 注意：个性化需求要求“逐条发送”，避免把多条需求一次性让大模型合并
-                    const raw = (this.extraClauses || '').trim();
-                    if (!raw) {
-                        this.genResult = { final_contract: '', iterations: [], total_iterations: 0, success: true };
-                        return;
-                    }
-
-                    if (!this.canGenerate) return;
-
-                    // 把用户输入切成 items（去掉前置编号）
-                    let normalized = raw.replace(/\r\n/g, '\n').replace(/；/g, '\n').replace(/;/g, '\n');
-                    normalized = normalized.replace(/(^|\s)([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '\n$2、');
-                    const items = normalized
-                        .split('\n')
-                        .map((x) => x.trim())
-                        .filter(Boolean)
-                        .map((x) =>
-                            x.replace(/^\s*([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '')
-                        )
-                        .filter(Boolean);
-
-                    if (!items.length) {
-                        this.genResult = { final_contract: '', iterations: [], total_iterations: 0, success: true };
-                        return;
-                    }
-
-                    // 并行发起每条个性化请求（分批并发）；然后按顺序把结果拼接成最终“补充约定”
-                    this.genLoading = true;
-                    this.genError = '';
-                    this.genResult = null;
-
-                    (async () => {
-                        const outputs = Array(items.length).fill('');
-                        // 并发上限：最多同时请求 N 条，避免后端/第三方限流
-                        const maxConcurrent = 4;
-                        const batchSize = Math.min(items.length, maxConcurrent);
-
-                        try {
-                            for (let start = 0; start < items.length; start += batchSize) {
-                                const batch = items.slice(start, start + batchSize);
-                                const batchPromises = batch.map((demand, j) => {
-                                    const idx = start + j;
-                                    return fetch('/generate/generate/', {
-                                        method: 'POST',
-                                        credentials: 'same-origin',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRFToken': getCookie('csrftoken')
-                                        },
-                                        body: JSON.stringify({ demand })
-                                    })
-                                        .then((res) => {
-                                            if (!res.ok) throw new Error('HTTP ' + res.status);
-                                            return res.json();
-                                        })
-                                        .then((data) => {
-                                            const fc = data?.final_contract || '';
-                                            return this.normalizeSupplementNumber(fc, 12 + idx);
-                                        });
-                                });
-
-                                const batchResults = await Promise.allSettled(batchPromises);
-                                batchResults.forEach((r, j) => {
-                                    const idx = start + j;
-                                    if (r.status === 'fulfilled' && r.value) outputs[idx] = r.value;
-                                    if (r.status === 'rejected') this.genError = r.reason?.message || String(r.reason);
-                                });
-                            }
-                        } catch (e) {
-                            this.genError = e?.message || String(e);
-                        }
-
-                        const supplements = outputs.filter(Boolean);
-                        this.genResult = {
-                            final_contract: supplements.join('\n\n'),
-                            iterations: [],
-                            total_iterations: items.length,
-                            success: supplements.length > 0
-                        };
-                        this.genLoading = false;
-                    })();
-                },
-                runCheckFile() {
-                    const input = this.$refs.fileInput;
-                    const file = input?.files?.[0];
-                    if (!file) {
-                        alert('先选文件');
-                        return;
-                    }
-            const fd = new FormData(); 
-            fd.append('upload_file', file);
-                    this.checkFileLoading = true;
-                    this.checkError = '';
-                    this.checkPayload = null;
-                    fetch('/check/check/', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                        body: fd
-                    })
-                        .then((res) => res.json().then((j) => ({ body: j })))
-                        .then((r) => { this.applyCheckResponse(r.body); })
-                        .catch((e) => { this.checkError = e.message || String(e); })
-                        .finally(() => { this.checkFileLoading = false; });
-                },
-                runCheckText() {
-                    const text = (this.contractContent || '').trim();
-                    if (!text) {
-                        alert('先粘贴正文');
-                        return;
-                    }
-                    this.checkTextLoading = true;
-                    this.checkError = '';
-                    this.checkPayload = null;
-                    fetch('/check/check/', {
-                        method: 'POST',
-                        credentials: 'same-origin',
+            } catch (e) {
+                console.log('检查登录状态失败');
+            }
+        },
+        async login() {
+            try {
+                const res = await fetch('/api/user/login/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCookie('csrftoken')
-                        },
-                        body: JSON.stringify({ contract_content: text })
-                    })
-                        .then((res) => res.json().then((j) => ({ body: j })))
-                        .then((r) => { this.applyCheckResponse(r.body); })
-                        .catch((e) => { this.checkError = e.message || String(e); })
-                        .finally(() => { this.checkTextLoading = false; });
-                },
-                applyCheckResponse(data) {
-                    this.checkPayload = data;
-                    if (data.code === 200 && data.data) {
-                        this.checkError = '';
-                        return;
-                    }
-                    let msg = data.message || data.error || '';
-                    if (data.errors) msg += ' ' + JSON.stringify(data.errors);
-                    if (data.code === 500 && data.error) msg = (data.message || '') + ' — ' + data.error;
-                    this.checkError = msg || '检查失败';
+                    },
+                    body: JSON.stringify(this.loginForm)
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                    this.showLogin = false;
+                } else {
+                    alert(data.message || '登录失败');
                 }
+            } catch (e) {
+                alert('登录失败');
             }
-        }).mount('#app');
-    </script>
-</body>
-</html>
+        },
+        async logout() {
+            await fetch('/api/user/logout/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            this.user = null;
+            AuthManager.clearAuth();
+        },
+        async register() {
+            if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+            try {
+                const res = await fetch('/api/user/register/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        username: this.registerForm.username,
+                        password: this.registerForm.password
+                    })
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    alert('注册成功，请登录');
+                    this.showRegister = false;
+                    this.registerForm = { username: '', password: '', confirmPassword: '' };
+                } else {
+                    alert(data.message || '注册失败');
+                }
+            } catch (e) {
+                alert('注册失败');
+            }
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}

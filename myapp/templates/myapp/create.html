@@ -1,0 +1,1016 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}信息录入 - 租房合同工作台{% endblock %}
+
+{% block content %}
+<div id="app" class="page">
+    <div class="shell">
+        <!-- 顶栏导航 -->
+        <div class="top-nav">
+            <a href="/" class="logo">Contract Lab</a>
+            <div class="nav-links">
+                <a href="/api/create/" class="active">录入</a>
+                <a href="/api/check/">检查</a>
+                <a href="/api/history/">历史</a>
+                <a href="/api/profile/">个人</a>
+            </div>
+            <div class="user-menu" v-if="user">
+                <span>${ user.username }</span>
+                <button @click="logout">退出</button>
+            </div>
+            <div class="user-menu" v-else>
+                <button @click="showLogin = true">登录</button>
+                <button @click="showRegister = true">注册</button>
+            </div>
+        </div>
+
+        <div class="glass" v-if="!user">
+            <h2>提示</h2>
+            <p>请先登录后使用合同生成功能</p>
+            <button class="btn btn-primary" @click="showLogin = true">登录</button>
+        </div>
+
+        <template v-else>
+            <div class="glass">
+                <h2>合同要素录入</h2>
+                
+                <p class="sub-h">当事人</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="lbl" for="landlordName">出租方（甲方）</label>
+                        <input id="landlordName" class="inp" type="text" v-model.trim="form.landlordName" placeholder="姓名或名称" autocomplete="name" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="tenantName">承租方（乙方）</label>
+                        <input id="tenantName" class="inp" type="text" v-model.trim="form.tenantName" placeholder="姓名或名称" autocomplete="name" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="landlordIdNo">甲方身份证号</label>
+                        <input id="landlordIdNo" class="inp" type="text" v-model.trim="form.landlordIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
+                    </div>
+                    <div>
+                        <label class="lbl" for="tenantIdNo">乙方身份证号</label>
+                        <input id="tenantIdNo" class="inp" type="text" v-model.trim="form.tenantIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
+                    </div>
+                    <div>
+                        <label class="lbl" for="landlordPhone">甲方电话</label>
+                        <input id="landlordPhone" class="inp" type="text" v-model.trim="form.landlordPhone" placeholder="必填" inputmode="tel" required />
+                    </div>
+                    <div>
+                        <label class="lbl" for="tenantPhone">乙方电话</label>
+                        <input id="tenantPhone" class="inp" type="text" v-model.trim="form.tenantPhone" placeholder="必填" inputmode="tel" required />
+                    </div>
+                </div>
+
+                <p class="sub-h">房屋与用途</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="lbl" for="city">市</label>
+                        <input id="city" class="inp" type="text" v-model.trim="form.city" placeholder="如 杭州" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="addressDetail">坐落（区/路/门牌等）</label>
+                        <input id="addressDetail" class="inp" type="text" v-model.trim="form.addressDetail" placeholder="详细地址" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="roomCount">间数</label>
+                        <input id="roomCount" class="inp" type="text" v-model.trim="form.roomCount" placeholder="如 2" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="buildingAreaSqm">建筑面积（㎡）</label>
+                        <input id="buildingAreaSqm" class="inp" type="text" v-model.trim="form.buildingAreaSqm" placeholder="如 65" />
+                    </div>
+                    <div class="field-span-2">
+                        <label class="lbl" for="usagePurpose">用途</label>
+                        <input id="usagePurpose" class="inp" type="text" v-model.trim="form.usagePurpose" placeholder="如 居住" />
+                    </div>
+                </div>
+
+                <p class="sub-h">租期</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="lbl" for="leaseMonths">租期共（月）</label>
+                        <input id="leaseMonths" class="inp" type="text" v-model.trim="form.leaseMonths" placeholder="如 12" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="lateRentMonths">拖欠租金满（月）甲方可解约</label>
+                        <input id="lateRentMonths" class="inp" type="text" v-model.trim="form.lateRentMonths" placeholder="如 2" />
+                    </div>
+                    <div>
+                        <label class="lbl">起租日</label>
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                            <input class="inp" type="text" v-model.trim="form.leaseStartYear" placeholder="年" aria-label="起租年" />
+                            <input class="inp" type="text" v-model.trim="form.leaseStartMonth" placeholder="月" aria-label="起租月" />
+                            <input class="inp" type="text" v-model.trim="form.leaseStartDay" placeholder="日" aria-label="起租日" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="lbl">到期日</label>
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                            <input class="inp" type="text" v-model.trim="form.leaseEndYear" placeholder="年" aria-label="到期年" />
+                            <input class="inp" type="text" v-model.trim="form.leaseEndMonth" placeholder="月" aria-label="到期月" />
+                            <input class="inp" type="text" v-model.trim="form.leaseEndDay" placeholder="日" aria-label="到期日" />
+                        </div>
+                    </div>
+                </div>
+
+                <p class="sub-h">租金与押金</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="lbl" for="monthlyRent">月租金（元）</label>
+                        <input id="monthlyRent" class="inp" type="text" v-model.trim="form.monthlyRent" placeholder="数字" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="monthlyRentChinese">大写</label>
+                        <input id="monthlyRentChinese" class="inp" type="text" v-model.trim="form.monthlyRentChinese" placeholder="如 叁仟元整" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="rentPayCycle">支付周期</label>
+                        <input id="rentPayCycle" class="inp" type="text" v-model.trim="form.rentPayCycle" placeholder="如 月 / 季" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="rentPayDeadline">交纳期限说明</label>
+                        <input id="rentPayDeadline" class="inp" type="text" v-model.trim="form.rentPayDeadline" placeholder="如 每月5日前" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="deposit">押金（元）</label>
+                        <input id="deposit" class="inp" type="text" v-model.trim="form.deposit" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="depositChinese">押金大写</label>
+                        <input id="depositChinese" class="inp" type="text" v-model.trim="form.depositChinese" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="penaltyAmount">违约金（元）</label>
+                        <input id="penaltyAmount" class="inp" type="text" v-model.trim="form.penaltyAmount" placeholder="第八条约定" />
+                    </div>
+                </div>
+
+                <p class="sub-h">签署日期</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="lbl" for="signYear">年</label>
+                        <input id="signYear" class="inp" type="text" v-model.trim="form.signYear" placeholder="如 2026" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="signMonth">月</label>
+                        <input id="signMonth" class="inp" type="text" v-model.trim="form.signMonth" />
+                    </div>
+                    <div>
+                        <label class="lbl" for="signDay">日</label>
+                        <input id="signDay" class="inp" type="text" v-model.trim="form.signDay" />
+                    </div>
+                </div>
+
+                <p class="sub-h">补充 / 个性化条款（可选）</p>
+                <label class="lbl" for="extraClauses">说明给模型</label>
+                <p class="form-hint">将结合知识库生成「补充约定」类内容；不需要可留空。</p>
+                <textarea id="extraClauses" class="inp" v-model="form.extraClauses" rows="4" placeholder="例：允许乙方饲养宠物；乙方需购买租客险；提前解约需提前30日通知…"></textarea>
+
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="togglePreview">预览合同</button>
+                </div>
+
+                <!-- 悬浮的合同预览 -->
+                <div class="preview-overlay" v-if="showPreview">
+                    <div class="preview-container">
+                        <div class="preview-header">
+                            <h3>合同预览</h3>
+                            <button class="close-btn" @click="showPreview = false">&times;</button>
+                        </div>
+                        
+                        <!-- 加载状态 -->
+                        <div class="loading-section" v-if="loading">
+                            <div class="spin"></div>
+                            <p>正在调用 RAG 服务生成补充条款，请稍候...</p>
+                        </div>
+                        
+                        <!-- 合同内容 -->
+                        <div class="preview-content" v-else>
+                            <pre class="contract-text">${ contractContent }</pre>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="preview-footer">
+                            <button 
+                                @click="exportPDF" 
+                                @mouseenter="activeExportButton = 'pdf'" 
+                                @mouseleave="activeExportButton = null"
+                                :class="['btn', activeExportButton === 'pdf' ? 'btn-primary' : 'btn-ghost']"
+                            >
+                                导出PDF
+                            </button>
+                            <button 
+                                @click="exportWord" 
+                                @mouseenter="activeExportButton = 'word'" 
+                                @mouseleave="activeExportButton = null"
+                                :class="['btn', activeExportButton === 'word' ? 'btn-primary' : 'btn-ghost']"
+                            >
+                                导出Word
+                            </button>
+                            <button 
+                                @click="exportTXT" 
+                                @mouseenter="activeExportButton = 'txt'" 
+                                @mouseleave="activeExportButton = null"
+                                :class="['btn', activeExportButton === 'txt' ? 'btn-primary' : 'btn-ghost']"
+                            >
+                                导出TXT
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- 登录模态框 -->
+        <div v-if="showLogin" class="modal-backdrop" @click="showLogin = false">
+            <div class="modal" @click.stop>
+                <h3>登录</h3>
+                <input class="inp" type="text" v-model="loginForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="loginForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="login">登录</button>
+                    <button class="btn btn-ghost" @click="showLogin = false">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册模态框 -->
+        <div v-if="showRegister" class="modal-backdrop" @click="showRegister = false">
+            <div class="modal" @click.stop>
+                <h3>注册</h3>
+                <input class="inp" type="text" v-model="registerForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="registerForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <input class="inp" type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="register">注册</button>
+                    <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+}
+.modal h3 {
+    margin: 0 0 1rem;
+    color: var(--cyan);
+}
+
+/* 悬浮预览样式 */
+.preview-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.preview-container {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.preview-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    line-height: 1;
+}
+
+.preview-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: white;
+}
+
+.contract-text {
+    white-space: pre-wrap;
+    font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.preview-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.preview-footer button {
+    flex: 1;
+}
+
+.loading-section {
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.spin {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(45, 212, 191, 0.2);
+    border-top-color: var(--cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    compilerOptions: {
+        delimiters: ['${', '}']
+    },
+    data() {
+        return {
+            user: AuthManager.getUser(),
+            showLogin: false,
+            showRegister: false,
+            loginForm: { username: '', password: '' },
+            registerForm: { username: '', password: '', confirmPassword: '' },
+            form: {
+                landlordName: '',
+                tenantName: '',
+                landlordIdNo: '',
+                tenantIdNo: '',
+                landlordPhone: '',
+                tenantPhone: '',
+                city: '',
+                addressDetail: '',
+                roomCount: '',
+                buildingAreaSqm: '',
+                usagePurpose: '',
+                leaseMonths: '',
+                lateRentMonths: '',
+                leaseStartYear: '',
+                leaseStartMonth: '',
+                leaseStartDay: '',
+                leaseEndYear: '',
+                leaseEndMonth: '',
+                leaseEndDay: '',
+                monthlyRent: '',
+                monthlyRentChinese: '',
+                rentPayCycle: '月',
+                rentPayDeadline: '',
+                deposit: '',
+                depositChinese: '',
+                penaltyAmount: '',
+                signYear: '',
+                signMonth: '',
+                signDay: '',
+                extraClauses: ''
+            },
+            showPreview: false,
+            loading: false,
+            contractContent: '',
+            contractId: null,
+            supplementCount: 0,
+            activeExportButton: null
+        };
+    },
+    mounted() {
+        this.checkLogin();
+    },
+    methods: {
+        async checkLogin() {
+            if (AuthManager.isLoggedIn()) {
+                this.user = AuthManager.getUser();
+            }
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                } else {
+                    this.user = null;
+                    AuthManager.clearAuth();
+                }
+            } catch (e) {
+                console.log('检查登录状态失败');
+            }
+        },
+        async login() {
+            try {
+                const res = await fetch('/api/user/login/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(this.loginForm)
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                    this.showLogin = false;
+                } else {
+                    alert(data.message || '登录失败');
+                }
+            } catch (e) {
+                alert('登录失败');
+            }
+        },
+        async logout() {
+            await fetch('/api/user/logout/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            this.user = null;
+            AuthManager.clearAuth();
+        },
+        async register() {
+            if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+            try {
+                const res = await fetch('/api/user/register/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        username: this.registerForm.username,
+                        password: this.registerForm.password
+                    })
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    alert('注册成功，请登录');
+                    this.showRegister = false;
+                    this.registerForm = { username: '', password: '', confirmPassword: '' };
+                } else {
+                    alert(data.message || '注册失败');
+                }
+            } catch (e) {
+                alert('注册失败');
+            }
+        },
+
+        // 保存合同到数据库
+        async saveContractToDatabase() {
+            try {
+                const res = await fetch('/api/contract/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        title: '租房合同_' + new Date().getTime(),
+                        content: this.contractContent,
+                        status: 'generated'
+                    })
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    console.log('合同保存成功:', data.data);
+                }
+            } catch (e) {
+                console.error('保存合同失败:', e);
+            }
+        },
+
+        // 记录合同生成
+        async recordContractGeneration() {
+            try {
+                // 保存合同到数据库
+                await this.saveContractToDatabase();
+                
+                // 增加用户统计数据
+                await fetch('/api/user/stats/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ type: 'generate' })
+                });
+            } catch (e) {
+                console.error('记录合同生成失败:', e);
+            }
+        },
+        // 切换预览显示/隐藏
+        async togglePreview() {
+            if (!this.showPreview) {
+                this.loading = true;
+                try {
+                    // 先组装标准合同
+                    this.contractContent = this.assembleStandardContract(this.form);
+                    
+                    // 如果有个性化条款，调用RAG生成
+                    if (this.form.extraClauses?.trim()) {
+                        await this.generateSupplements(this.form.extraClauses);
+                        this.form.extraClauses = ''; // 清空输入框
+                    }
+                } catch (e) {
+                    console.error('生成合同失败:', e);
+                    alert('生成失败，请重试');
+                } finally {
+                    this.loading = false;
+                }
+            }
+            this.showPreview = !this.showPreview;
+        },
+
+
+
+        // 组装标准合同
+        assembleStandardContract(form) {
+            const f = form;
+            const a = f.landlordName || '________';
+            const b = f.tenantName || '________';
+            const aid = f.landlordIdNo || '____________________';
+            const bid = f.tenantIdNo || '____________________';
+            const city = f.city || '________';
+            const addr = f.addressDetail || '________________';
+            const rooms = f.roomCount || '____';
+            const area = f.buildingAreaSqm || '________';
+            const usage = f.usagePurpose || '居住';
+            const months = f.leaseMonths || '____';
+            const late = f.lateRentMonths || '2';
+            const sy = f.leaseStartYear || '____';
+            const sm = f.leaseStartMonth || '____';
+            const sd = f.leaseStartDay || '____';
+            const ey = f.leaseEndYear || '____';
+            const em = f.leaseEndMonth || '____';
+            const ed = f.leaseEndDay || '____';
+            const rent = f.monthlyRent || '________';
+            const rentU = f.monthlyRentChinese || '________________';
+            const payEvery = f.rentPayCycle || '月';
+            const payDl = f.rentPayDeadline || '每月____日前';
+            const dep = f.deposit || '____';
+            const depU = f.depositChinese || '__________________';
+            const pen = f.penaltyAmount || '____';
+            const lp = f.landlordPhone || '___________';
+            const tp = f.tenantPhone || '___________';
+            const sy2 = f.signYear || new Date().getFullYear();
+            const sm2 = f.signMonth || (new Date().getMonth() + 1);
+            const sd2 = f.signDay || new Date().getDate();
+            
+            return `出租方（以下简称甲方）：${a}，身份证号：${aid}，
+承租方（以下简称乙方）：${b}，身份证号：${bid}，
+
+根据《中华人民共和国民法典》及有关规定，为明确甲、乙双方的权利义务关系，经双方协商一致，签订本合同。
+
+第一条、甲方将自有的坐落在${city}市${addr}的房屋${rooms}间，建筑面积${area}平方米,出租给乙方作${usage}使用。
+
+第二条、租赁期限，租赁期共${months}个月，从${sy}年${sm}月${sd}日至${ey}年${em}月${ed}日。合同期满后，甲方仍继续出租房屋的，乙方拥有优先承租权。
+
+乙方有下列情形之一的，甲方可以终止合同，收回房屋：
+
+1．利用承租房屋进行非法活动，损害公共利益的；
+2．拖欠租金${late}个月的。
+
+第三条、租金和租金交纳期限，甲乙双方议定月租金(人民币)${rent}元(大写${rentU})，租金每${payEvery}支付一次，租金的交纳期限为${payDl}。
+
+第四条、乙方向甲方交纳押金(人民币)${dep}元(大写${depU})。合同到期后当日返还。
+
+第五条、房屋的装修，在不影响房屋主体结构的前提下，乙方可对房屋进行装修或改善增设他物。租赁合同期满，房屋的装修、增设的物品在不影响房屋主体结构的情况下，由乙方自行处理。
+
+第六条、乙方租房期间水、电、电话费、宽带费、物业管理费用由乙方承担。
+
+第七条、租赁双方的变更
+
+1．如甲方按法定手续程序将房产所有权转移给第三方时，在无约定的情况下，本合同对新的房产所有者继续有效；
+2．甲方出售房屋，须在三个月前书面通知乙方，在同等条件下，乙方有优先购买权；
+3、合同期内，乙方如不能再继续经营时，可转让他人经营。
+
+第八条、违约责任
+
+1．租赁双方如有一方未履行第七条约定的有关条款的，违约方赔偿对方${pen}元。
+2．甲方向乙方收取约定租金以外的费用，乙方有权拒付。
+
+第九条、免责条件
+
+1．房屋如因不可抗拒的原因导致损毁或造成乙方损失的，甲乙双方互不承担责任。
+2．因市政建设需要拆除或改造已租赁的房屋，使甲乙双方造成损失，互不承担责任。
+
+因上述原因而终止合同的，租金按实际使用时间计算，多退少补。
+
+第十条、争议解决的方式
+
+本合同在履行中如发生争议，双方应协商解决；协商不成时,也可以向人民法院起诉。
+
+第十一条、本合同未尽事宜，甲乙双方可共同协商，签订补充协议。与本合同具有同等效力。
+
+出租方：（盖章）　　　 承租方：（盖章）
+
+委托代理人：（签名）　 　委托代理人：（签名）
+
+电话：${lp}　　　　　　 电话：${tp}
+
+${sy2}年${sm2}月${sd2}日　　　　　　 ${sy2}年${sm2}月${sd2}日`;
+        },
+
+        // 生成补充条款
+        async generateSupplements(clausesText) {
+            if (!clausesText.trim()) {
+                this.contractContent = this.assembleStandardContract(this.form);
+                return;
+            }
+
+            // 把用户输入切成 items
+            let normalized = clausesText.replace(/\r\n/g, '\n').replace(/；/g, '\n').replace(/;/g, '\n');
+            normalized = normalized.replace(/(^|\s)([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '\n$2、');
+            const items = normalized
+                .split('\n')
+                .map((x) => x.trim())
+                .filter(Boolean)
+                .map((x) => x.replace(/^\s*([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, ''))
+                .filter(Boolean);
+
+            if (!items.length) {
+                this.contractContent = this.assembleStandardContract(this.form);
+                return;
+            }
+
+            const outputs = [];
+            const maxConcurrent = 4;
+
+            try {
+                for (let start = 0; start < items.length; start += maxConcurrent) {
+                    const batch = items.slice(start, start + maxConcurrent);
+                    const batchPromises = batch.map((demand, j) => {
+                        const idx = this.supplementCount + start + j;
+                        return fetch('/generate/generate/', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({ demand })
+                        })
+                        .then((res) => {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        })
+                        .then((data) => {
+                            const fc = data?.final_contract || '';
+                            return this.normalizeSupplementNumber(fc, 12 + idx);
+                        });
+                    });
+
+                    const batchResults = await Promise.allSettled(batchPromises);
+                    batchResults.forEach((r) => {
+                        if (r.status === 'fulfilled' && r.value) outputs.push(r.value);
+                    });
+                }
+
+                // 将补充条款插入到合同中
+                if (outputs.length > 0) {
+                    this.insertSupplements(outputs);
+                    this.supplementCount += outputs.length;
+                }
+                
+            } catch (e) {
+                console.error('生成补充条款失败:', e);
+                throw e;
+            }
+        },
+
+        // 将补充条款插入到合同中
+        insertSupplements(supplements) {
+            const marker = "出租方：（盖章）";
+            const idx = this.contractContent.indexOf(marker);
+            
+            if (idx >= 0) {
+                const body = this.contractContent.slice(0, idx).trimEnd();
+                const signature = this.contractContent.slice(idx).trimStart();
+                this.contractContent = body + '\n\n' + supplements.join('\n\n') + '\n\n' + signature;
+            } else {
+                this.contractContent += '\n\n' + supplements.join('\n\n');
+            }
+        },
+
+        // 数字转中文
+        numToCn(n) {
+            const cnNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+            if (n < 10) return cnNums[n];
+            if (n === 10) return "十";
+            if (n < 20) return "十" + (n === 10 ? "" : cnNums[n % 10]);
+            if (n < 100) {
+                const tens = Math.floor(n / 10);
+                const ones = n % 10;
+                return cnNums[tens] + "十" + (ones === 0 ? "" : cnNums[ones]);
+            }
+            return String(n);
+        },
+
+        // 规范化补充条款编号
+        normalizeSupplementNumber(text, targetNo) {
+            const t = (text || '').trim();
+            if (!t) return '';
+
+            const targetCn = this.numToCn(targetNo);
+
+            // 优先替换后端常见的"第十二条"
+            if (/第\s*(十二|12)\s*条/.test(t)) {
+                return t.replace(/第\s*(十二|12)\s*条/, `第${targetCn}条`);
+            }
+
+            // 如果后端已经输出了某个条号（数字/中文），替换为目标条号
+            if (/第\s*(\d+)\s*条/.test(t) || /第\s*[一二三四五六七八九十]{2,3}\s*条/.test(t)) {
+                return t.replace(/第\s*(\d+|[一二三四五六七八九十]{2,3})\s*条/, `第${targetCn}条`);
+            }
+
+            // 没有条号：包装成补充约定
+            return `第${targetCn}条、补充约定：${t}`;
+        },
+
+        // 保存最终合同
+        async saveFinalContract() {
+            try {
+                const res = await fetch('/api/contract/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        title: '租房合同_' + new Date().getTime(),
+                        content: this.contractContent,
+                        status: 'final'
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.contractId = data.data.id;
+                    alert('合同保存成功！');
+                } else {
+                    alert(data.message || '保存合同失败');
+                }
+            } catch (e) {
+                console.error('保存合同失败:', e);
+                alert('保存合同失败，请稍后再试');
+            }
+        },
+
+        // 导出PDF（前端实现）
+        async exportPDF() {
+            try {
+                // 记录合同生成
+                await this.recordContractGeneration();
+                
+                // 创建一个HTML页面，使用更严格的CSS来禁用水印
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title></title>
+                        <style>
+                            * {
+                                margin: 0;
+                                padding: 0;
+                            }
+                            body {
+                                font-family: "Noto Sans SC", serif;
+                                line-height: 1.8;
+                                margin: 0;
+                                padding: 40px;
+                                background: white;
+                            }
+                            h1 {
+                                text-align: center;
+                                font-size: 1.5rem;
+                                margin-bottom: 1.5rem;
+                                color: #333;
+                            }
+                            @media print {
+                                @page {
+                                    size: A4;
+                                    margin: 0;
+                                }
+                                body {
+                                    margin: 0;
+                                    padding: 40px;
+                                }
+                                * {
+                                    -webkit-print-color-adjust: exact;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>租房合同</h1>
+                        <pre style="white-space: pre-wrap;">${this.contractContent}</pre>
+                    </body>
+                    </html>
+                `;
+                
+                // 创建Blob对象
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                // 打开新窗口打印
+                const printWindow = window.open(url, '_blank');
+                printWindow.onload = function() {
+                    // 直接打印，不显示预览
+                    printWindow.print();
+                };
+                
+                this.resetForm();
+            } catch (e) {
+                console.error('导出PDF失败:', e);
+                alert('导出失败，请稍后再试');
+            }
+        },
+
+        // 导出Word（前端实现）
+        async exportWord() {
+            try {
+                // 记录合同生成
+                await this.recordContractGeneration();
+                
+                // 创建一个HTML页面
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>租房合同</title>
+                        <style>
+                            body {
+                                font-family: "Noto Sans SC", serif;
+                                line-height: 1.8;
+                                margin: 20px;
+                            }
+                            h1 {
+                                text-align: center;
+                                font-size: 1.5rem;
+                                margin-bottom: 1.5rem;
+                                color: #333;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>租房合同</h1>
+                        <pre style="white-space: pre-wrap;">${this.contractContent}</pre>
+                    </body>
+                    </html>
+                `;
+                
+                // 创建Blob对象
+                const blob = new Blob([htmlContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                
+                // 创建下载链接
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '租房合同.doc';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.resetForm();
+            } catch (e) {
+                console.error('导出Word失败:', e);
+                alert('导出失败，请稍后再试');
+            }
+        },
+
+        // 导出TXT（前端实现）
+        async exportTXT() {
+            try {
+                // 记录合同生成
+                await this.recordContractGeneration();
+                
+                // 创建Blob对象
+                const blob = new Blob([this.contractContent], { type: 'text/plain; charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                
+                // 创建下载链接
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '租房合同.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.resetForm();
+            } catch (e) {
+                console.error('导出TXT失败:', e);
+                alert('导出失败，请稍后再试');
+            }
+        },
+
+        // 重置表单
+        resetForm() {
+            // 重置条款计数为12
+            this.supplementCount = 0;
+            
+            // 清空所有表单项
+            this.form = {
+                landlordName: '',
+                tenantName: '',
+                landlordIdNo: '',
+                tenantIdNo: '',
+                landlordPhone: '',
+                tenantPhone: '',
+                city: '',
+                addressDetail: '',
+                roomCount: '',
+                buildingAreaSqm: '',
+                usagePurpose: '',
+                leaseMonths: '',
+                lateRentMonths: '',
+                leaseStartYear: '',
+                leaseStartMonth: '',
+                leaseStartDay: '',
+                leaseEndYear: '',
+                leaseEndMonth: '',
+                leaseEndDay: '',
+                monthlyRent: '',
+                monthlyRentChinese: '',
+                rentPayCycle: '月',
+                rentPayDeadline: '',
+                deposit: '',
+                depositChinese: '',
+                penaltyAmount: '',
+                signYear: '',
+                signMonth: '',
+                signDay: '',
+                extraClauses: ''
+            };
+            
+            // 隐藏预览
+            this.showPreview = false;
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}

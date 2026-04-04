@@ -1,6 +1,14 @@
 from django.urls import path
-from myapp.views.test.index import UserHandler
+from django.http import JsonResponse
+
+
+def test_view(request):
+    return JsonResponse({
+        'code': 200,
+        'message': '测试接口正常工作'
+    })
+
+
 urlpatterns = [
-    path('user/', UserHandler.as_view(), name='user'),
-    path('user/<int:pk>/', UserHandler.as_view(), name='user'), 
+    path('', test_view, name='test'),
 ]

@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema,OpenApiParameter,OpenApiExample,
 from myapp.views.generate.ragservice.rag_service import get_rag
 from myapp.views.check.checkservice.service import RentalContractChecker
 from rest_framework import serializers
+from rest_framework.permissions import IsAuthenticated
 
 # 用于实现POST方式发送请求
 class GenerateSerializer(serializers.Serializer):
@@ -11,6 +12,7 @@ class GenerateSerializer(serializers.Serializer):
 
 @extend_schema(tags=["租房合同的生成"])
 class GenerateHandler(APIView):
+    permission_classes = [IsAuthenticated]
     @extend_schema(summary="生成文件", description="生成文件")
     def get(self, request):
         return Response()
@@ -87,15 +89,18 @@ class GenerateHandler(APIView):
         
         # 返回最终结果
         response_data = {
-            # 若未通过合规，也返回最后一次生成结果，便于用户预览/继续调整需求
-            "final_contract": final_contract if final_contract is not None else last_generated_contract,
-            "iterations": iteration_history,
-            "total_iterations": iteration,
-            "success": final_contract is not None
+            "code": 200,
+            "message": "生成成功",
+            "data": {
+                "final_contract": final_contract if final_contract is not None else last_generated_contract,
+                "iterations": iteration_history,
+                "total_iterations": iteration,
+                "success": final_contract is not None
+            }
         }
         
         if final_contract is None:
-            response_data["message"] = (
+            response_data["data"]["message"] = (
                 f"在{max_iterations}次迭代后仍未生成合规合同，已返回最后一次生成的条款供参考；"
                 "请根据问题反馈继续完善需求或联系管理员。"
             )

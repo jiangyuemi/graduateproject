@@ -1,0 +1,473 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}历史记录 - 租房合同工作台{% endblock %}
+
+{% block extra_css %}
+<style>
+.contract-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.contract-item {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.65rem;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.contract-info {
+    flex: 1;
+}
+.contract-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+.contract-meta {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.contract-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+.status-draft {
+    background: rgba(155, 150, 176, 0.2);
+    color: var(--muted);
+}
+.status-generated {
+    background: rgba(45, 212, 191, 0.2);
+    color: var(--cyan);
+}
+.status-checked {
+    background: rgba(167, 139, 250, 0.2);
+    color: var(--violet);
+}
+.contract-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.contract-actions button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+}
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="page">
+    <div class="shell">
+        <!-- 顶栏导航 -->
+        <div class="top-nav">
+            <a href="/" class="logo">Contract Lab</a>
+            <div class="nav-links">
+                <a href="/api/create/">录入</a>
+                <a href="/api/check/">检查</a>
+                <a href="/api/history/" class="active">历史</a>
+                <a href="/api/profile/">个人</a>
+            </div>
+            <div class="user-menu" v-if="user">
+                <span>${ user.username }</span>
+                <button @click="logout">退出</button>
+            </div>
+            <div class="user-menu" v-else>
+                <button @click="showLogin = true">登录</button>
+                <button @click="showRegister = true">注册</button>
+            </div>
+        </div>
+
+        <div class="glass" v-if="!user">
+            <h2>提示</h2>
+            <p>请先登录后查看历史记录</p>
+            <button class="btn btn-primary" @click="showLogin = true">登录</button>
+        </div>
+
+        <template v-else>
+            <div class="glass">
+                <h2>历史合同记录</h2>
+                <div v-if="contracts.length > 0" class="contract-list">
+                    <div v-for="contract in contracts" :key="contract.id" class="contract-item">
+                        <div class="contract-info">
+                            <div class="contract-title">
+                                ${ contract.title }
+                                <span class="contract-status" :class="'status-' + contract.status">${ getStatusLabel(contract.status) }</span>
+                            </div>
+                            <div class="contract-meta">
+                                创建时间: ${ formatDate(contract.created_at) } | 最后更新: ${ formatDate(contract.updated_at) }
+                            </div>
+                        </div>
+                        <div class="contract-actions">
+                            <button class="btn btn-ghost" @click="viewContract(contract.id)">查看</button>
+                            <button class="btn btn-ghost" @click="exportContract(contract.id)">导出</button>
+                            <button class="btn btn-ghost" @click="deleteContract(contract.id)" style="color: var(--err);">删除</button>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="empty-state">
+                    <p>暂无历史合同记录</p>
+                    <a href="/create/" class="btn btn-primary" style="margin-top: 1rem;">开始创建合同</a>
+                </div>
+            </div>
+        </template>
+
+        <!-- 登录模态框 -->
+        <div v-if="showLogin" class="modal-backdrop" @click="showLogin = false">
+            <div class="modal" @click.stop>
+                <h3>登录</h3>
+                <input class="inp" type="text" v-model="loginForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="loginForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="login">登录</button>
+                    <button class="btn btn-ghost" @click="showLogin = false">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册模态框 -->
+        <div v-if="showRegister" class="modal-backdrop" @click="showRegister = false">
+            <div class="modal" @click.stop>
+                <h3>注册</h3>
+                <input class="inp" type="text" v-model="registerForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="registerForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <input class="inp" type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="register">注册</button>
+                    <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+}
+.modal h3 {
+    margin: 0 0 1rem;
+    color: var(--cyan);
+}
+</style>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    compilerOptions: {
+        delimiters: ['${', '}']
+    },
+    data() {
+        return {
+            user: AuthManager.getUser(),
+            showLogin: false,
+            showRegister: false,
+            loginForm: { username: '', password: '' },
+            registerForm: { username: '', password: '', confirmPassword: '' },
+            contracts: []
+        };
+    },
+    mounted() {
+        this.checkLogin();
+        this.loadContracts();
+    },
+    methods: {
+        async checkLogin() {
+            if (AuthManager.isLoggedIn()) {
+                this.user = AuthManager.getUser();
+            }
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                } else {
+                    this.user = null;
+                    AuthManager.clearAuth();
+                }
+            } catch (e) {
+                console.log('检查登录状态失败');
+            }
+        },
+        async login() {
+            try {
+                const res = await fetch('/api/user/login/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(this.loginForm)
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                    this.showLogin = false;
+                    this.loadContracts();
+                } else {
+                    alert(data.message || '登录失败');
+                }
+            } catch (e) {
+                alert('登录失败');
+            }
+        },
+        async logout() {
+            await fetch('/api/user/logout/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            this.user = null;
+            AuthManager.clearAuth();
+        },
+        async register() {
+            if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+            try {
+                const res = await fetch('/api/user/register/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        username: this.registerForm.username,
+                        password: this.registerForm.password
+                    })
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    alert('注册成功，请登录');
+                    this.showRegister = false;
+                    this.registerForm = { username: '', password: '', confirmPassword: '' };
+                } else {
+                    alert(data.message || '注册失败');
+                }
+            } catch (e) {
+                alert('注册失败');
+            }
+        },
+        async loadContracts() {
+            try {
+                const res = await fetch('/api/contract/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.contracts = data.data.contracts || [];
+                }
+            } catch (e) {
+                console.error('加载合同失败:', e);
+                this.contracts = [];
+            }
+        },
+        // 查看合同
+        async viewContract(id) {
+            try {
+                const res = await fetch(`/api/contract/${id}/`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    const contract = data.data;
+                    const content = contract.content || '合同内容为空';
+                    
+                    // 创建一个模态框显示合同
+                    const modal = document.createElement('div');
+                    modal.className = 'modal-backdrop';
+                    modal.innerHTML = `
+                        <div class="modal" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                            <h3>${contract.title}</h3>
+                            <div style="white-space: pre-wrap; line-height: 1.6; margin: 1rem 0;">${content}</div>
+                            <div class="row-btns">
+                                <button class="btn btn-primary" onclick="this.closest('.modal-backdrop').remove()">关闭</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                } else {
+                    alert('获取合同失败: ' + data.message);
+                }
+            } catch (e) {
+                alert('查看合同失败，请稍后重试');
+            }
+        },
+        // 导出合同
+        async exportContract(id) {
+            try {
+                const res = await fetch(`/api/contract/${id}/`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    const contract = data.data;
+                    const content = contract.content || '合同内容为空';
+                    
+                    // 创建一个HTML页面，参考create.html的实现
+                    const htmlContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>${contract.title}</title>
+                            <style>
+                                * {
+                                    margin: 0;
+                                    padding: 0;
+                                }
+                                body {
+                                    font-family: "Noto Sans SC", serif;
+                                    line-height: 1.8;
+                                    margin: 0;
+                                    padding: 40px;
+                                    background: white;
+                                }
+                                h1 {
+                                    text-align: center;
+                                    font-size: 1.5rem;
+                                    margin-bottom: 1.5rem;
+                                    color: #333;
+                                }
+                                .content {
+                                    white-space: pre-wrap;
+                                    line-height: 1.6;
+                                }
+                                @media print {
+                                    @page {
+                                        size: A4;
+                                        margin: 0;
+                                    }
+                                    body {
+                                        margin: 0;
+                                        padding: 40px;
+                                    }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>${contract.title}</h1>
+                            <div class="content">${content}</div>
+                        </body>
+                        </html>
+                    `;
+                    
+                    // 创建一个新窗口
+                    const exportWindow = window.open('', '_blank');
+                    exportWindow.document.write(htmlContent);
+                    exportWindow.document.close();
+                    
+                    // 等待窗口加载完成后打印
+                    exportWindow.onload = function() {
+                        exportWindow.print();
+                        // 打印完成后关闭窗口
+                        setTimeout(function() {
+                            exportWindow.close();
+                        }, 1000);
+                    };
+                } else {
+                    alert('获取合同失败: ' + data.message);
+                }
+            } catch (e) {
+                alert('导出合同失败，请稍后重试');
+            }
+        },
+        async deleteContract(id) {
+            if (!confirm('确定要删除这个合同吗？')) return;
+            
+            try {
+                // 先获取合同详情，了解合同类型
+                const getRes = await fetch(`/api/contract/${id}/`, { credentials: 'same-origin' });
+                const getdata = await getRes.json();
+                
+                if (getdata.code === 200) {
+                    const contract = getdata.data;
+                    const status = contract.status;
+                    
+                    // 执行删除操作
+                    const deleteRes = await fetch(`/api/contract/${id}/`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    });
+                    
+                    if (deleteRes.ok) {
+                        // 根据合同类型更新统计数据
+                        if (status === 'generated') {
+                            // 减少生成合同计数
+                            await fetch('/api/user/stats/', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: JSON.stringify({ type: 'decrement_generate' })
+                            });
+                        } else if (status === 'checked') {
+                            // 减少检查合同计数
+                            await fetch('/api/user/stats/', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: JSON.stringify({ type: 'decrement_check' })
+                            });
+                        }
+                        
+                        // 更新前端合同列表
+                        this.contracts = this.contracts.filter(c => c.id !== id);
+                        alert('删除成功');
+                    } else {
+                        alert('删除失败');
+                    }
+                } else {
+                    alert('获取合同详情失败');
+                }
+            } catch (e) {
+                alert('删除失败，请稍后重试');
+            }
+        },
+        getStatusLabel(status) {
+            const labels = {
+                draft: '草稿',
+                generated: '已生成',
+                checked: '已检查',
+                modified: '已修改',
+                final: '最终版'
+            };
+            return labels[status] || status;
+        },
+        formatDate(dateString) {
+            if (!dateString) return '未知';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN');
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}

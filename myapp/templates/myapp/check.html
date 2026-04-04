@@ -1,0 +1,403 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}合规检查 - 租房合同工作台{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area {
+    border: 2px dashed var(--glass-border);
+    border-radius: 0.85rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.upload-area:hover {
+    border-color: var(--cyan);
+}
+.upload-area.dragover {
+    border-color: var(--cyan);
+    background: rgba(45, 212, 191, 0.05);
+}
+.check-result {
+    margin-top: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="page">
+    <div class="shell">
+        <!-- 顶栏导航 -->
+        <div class="top-nav">
+            <a href="/" class="logo">Contract Lab</a>
+            <div class="nav-links">
+                <a href="/api/create/">录入</a>
+                <a href="/api/check/" class="active">检查</a>
+                <a href="/api/history/">历史</a>
+                <a href="/api/profile/">个人</a>
+            </div>
+            <div class="user-menu" v-if="user">
+                <span>${ user.username }</span>
+                <button @click="logout">退出</button>
+            </div>
+            <div class="user-menu" v-else>
+                <button @click="showLogin = true">登录</button>
+                <button @click="showRegister = true">注册</button>
+            </div>
+        </div>
+
+        <div class="glass" v-if="!user">
+            <h2>提示</h2>
+            <p>请先登录后使用合规检查功能</p>
+            <button class="btn btn-primary" @click="showLogin = true">登录</button>
+        </div>
+
+        <template v-else>
+            <div class="glass">
+                <h2>上传合同进行检查</h2>
+                <div 
+                    class="upload-area" 
+                    @click="$refs.fileInput.click()"
+                    @drop.prevent="handleDrop"
+                    @dragover.prevent="dragOver = true"
+                    @dragleave.prevent="dragOver = false"
+                    :class="{ dragover: dragOver }"
+                >
+                    <input 
+                        type="file" 
+                        ref="fileInput" 
+                        style="display: none;" 
+                        accept=".pdf,.doc,.docx,.txt"
+                        @change="handleFileSelect"
+                    >
+                    <p>点击或拖拽文件到此处</p>
+                    <p style="font-size: 0.85rem; color: var(--muted);">支持 PDF、Word、TXT 格式</p>
+                </div>
+                <p v-if="selectedFile" class="msg-ok" style="margin-top: 0.5rem;">
+                    已选择: ${ selectedFile.name }
+                </p>
+                <div class="row-btns" style="margin-top: 1rem;">
+                    <button class="btn btn-primary" @click="checkContract" :disabled="!selectedFile || checking">
+                        <span v-if="checking" class="spin"></span>
+                        ${ checking ? '检查中...' : '开始检查' }
+                    </button>
+                    <button class="btn btn-ghost" @click="checkText">粘贴文本检查</button>
+                </div>
+            </div>
+
+            <div class="glass check-result" v-if="checkResult">
+                <h2>检查结果</h2>
+                <p :class="riskLineClass(checkResult.risk_level)">
+                    ${ getRiskLabel(checkResult.risk_level) }
+                </p>
+                <blockquote v-if="checkResult.summary" class="sum">${ checkResult.summary }</blockquote>
+                
+                <ul v-if="checkResult.issues && checkResult.issues.length > 0" class="issues">
+                    <li v-for="(issue, index) in checkResult.issues" :key="index">
+                        <span class="id">${ issue.rule_id || '—' }</span>
+                        ${ issue.message }
+                        <span v-if="issue.clause" class="cl">相关条款: ${ issue.clause }</span>
+                        <span v-if="issue.suggestion" class="cl">建议: ${ issue.suggestion }</span>
+                    </li>
+                </ul>
+                
+                <div v-else class="msg-ok" style="margin-top: 1rem;">
+                    恭喜！未发现明显问题，合同基本合规。
+                </div>
+            </div>
+
+            <!-- 文本检查模态框 -->
+            <div v-if="showTextModal" class="modal-backdrop" @click="showTextModal = false">
+                <div class="modal" @click.stop style="max-width: 600px;">
+                    <h3>粘贴合同文本</h3>
+                    <textarea class="inp" v-model="contractText" rows="10" placeholder="请将合同内容粘贴到这里..."></textarea>
+                    <div class="row-btns">
+                        <button class="btn btn-primary" @click="submitTextCheck" :disabled="!contractText.trim() || checking">
+                            <span v-if="checking" class="spin"></span>
+                            ${ checking ? '检查中...' : '开始检查' }
+                        </button>
+                        <button class="btn btn-ghost" @click="showTextModal = false">取消</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- 登录模态框 -->
+        <div v-if="showLogin" class="modal-backdrop" @click="showLogin = false">
+            <div class="modal" @click.stop>
+                <h3>登录</h3>
+                <input class="inp" type="text" v-model="loginForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="loginForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="login">登录</button>
+                    <button class="btn btn-ghost" @click="showLogin = false">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册模态框 -->
+        <div v-if="showRegister" class="modal-backdrop" @click="showRegister = false">
+            <div class="modal" @click.stop>
+                <h3>注册</h3>
+                <input class="inp" type="text" v-model="registerForm.username" placeholder="用户名">
+                <input class="inp" type="password" v-model="registerForm.password" placeholder="密码" style="margin-top: 0.5rem;">
+                <input class="inp" type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" style="margin-top: 0.5rem;">
+                <div class="row-btns">
+                    <button class="btn btn-primary" @click="register">注册</button>
+                    <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+}
+.modal h3 {
+    margin: 0 0 1rem;
+    color: var(--cyan);
+}
+</style>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    compilerOptions: {
+        delimiters: ["${", "}"]
+    },
+    data() {
+        return {
+            user: AuthManager.getUser(),
+            showLogin: false,
+            showRegister: false,
+            loginForm: { username: '', password: '' },
+            registerForm: { username: '', password: '', confirmPassword: '' },
+            dragOver: false,
+            selectedFile: null,
+            checking: false,
+            checkResult: null,
+            showTextModal: false,
+            contractText: ''
+        };
+    },
+    mounted() {
+        this.checkLogin();
+    },
+    methods: {
+        async checkLogin() {
+            if (AuthManager.isLoggedIn()) {
+                this.user = AuthManager.getUser();
+            }
+            try {
+                const res = await fetch('/api/user/profile/', { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                } else {
+                    this.user = null;
+                    AuthManager.clearAuth();
+                }
+            } catch (e) {
+                console.log('检查登录状态失败');
+            }
+        },
+        async login() {
+            try {
+                const res = await fetch('/api/user/login/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(this.loginForm)
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.user = data.data;
+                    AuthManager.saveUser(data.data);
+                    this.showLogin = false;
+                } else {
+                    alert(data.message || '登录失败');
+                }
+            } catch (e) {
+                alert('登录失败');
+            }
+        },
+        async logout() {
+            await fetch('/api/user/logout/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+            this.user = null;
+            AuthManager.clearAuth();
+        },
+        handleDrop(e) {
+            this.dragOver = false;
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.selectedFile = files[0];
+            }
+        },
+        handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                this.selectedFile = files[0];
+            }
+        },
+        checkText() {
+            this.showTextModal = true;
+            this.contractText = '';
+        },
+        // 保存合同到数据库
+        async saveContractToDatabase(contractContent) {
+            try {
+                const res = await fetch('/api/contract/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        title: '检查合同_' + new Date().getTime(),
+                        content: contractContent,
+                        status: 'checked'
+                    })
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    console.log('合同保存成功:', data.data);
+                }
+            } catch (e) {
+                console.error('保存合同失败:', e);
+            }
+        },
+
+        // 记录合同检查
+        async recordContractCheck(contractContent) {
+            try {
+                // 保存合同到数据库
+                await this.saveContractToDatabase(contractContent);
+                
+                // 增加用户统计数据
+                await fetch('/api/user/stats/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ type: 'check' })
+                });
+            } catch (e) {
+                console.error('记录合同检查失败:', e);
+            }
+        },
+
+        async submitTextCheck() {
+            if (!this.contractText.trim()) return;
+            
+            // 先清空结果，再显示加载状态
+            this.checkResult = null;
+            this.checking = true;
+            this.showTextModal = false;
+            
+            try {
+                const res = await fetch('/check/check/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ contract_content: this.contractText })
+                });
+                
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.checkResult = data.data;
+                    // 记录合同检查
+                    await this.recordContractCheck(this.contractText);
+                } else {
+                    alert(data.message || '检查失败');
+                }
+            } catch (e) {
+                alert('检查失败，请稍后重试');
+            } finally {
+                this.checking = false;
+            }
+        },
+        async checkContract() {
+            if (!this.selectedFile) return;
+            
+            // 先清空结果，再显示加载状态
+            this.checkResult = null;
+            this.checking = true;
+            
+            const formData = new FormData();
+            formData.append('upload_file', this.selectedFile);
+            
+            try {
+                const res = await fetch('/check/check/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                });
+                
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.checkResult = data.data;
+                    // 记录合同检查，使用返回的content字段
+                    await this.recordContractCheck(data.data.content || this.selectedFile.name);
+                } else {
+                    alert(data.message || '检查失败');
+                }
+            } catch (e) {
+                alert('检查失败，请稍后重试');
+            } finally {
+                this.checking = false;
+            }
+        },
+        getRiskLabel(level) {
+            const labels = {
+                high: '高风险',
+                medium: '中风险',
+                low: '低风险',
+                safe: '安全'
+            };
+            return labels[level] || level;
+        },
+        riskLineClass(level) {
+            const l = String(level || '').toLowerCase();
+            if (l === 'high' || l === '高') return 'risk high';
+            if (l === 'medium' || l === '中') return 'risk medium';
+            return 'risk low';
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}
