@@ -10,10 +10,37 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv():
+    """Load BASE_DIR/.env into os.environ; does not override existing variables."""
+    path = BASE_DIR / ".env"
+    if not path.is_file():
+        return
+    try:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
+                val = val[1:-1]
+            if key and key not in os.environ:
+                os.environ[key] = val
+    except OSError:
+        pass
+
+
+_load_dotenv()
 
 
 # Quick-start development settings - unsuitable for production

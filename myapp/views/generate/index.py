@@ -31,7 +31,7 @@ class GenerateHandler(APIView):
         rag = get_rag()
         checker = RentalContractChecker()
         
-        max_iterations = 2  # 最大迭代次数，避免无限循环
+        max_iterations = 1  # 最大迭代次数，避免无限循环
         iteration = 0
         current_demand = base_demand
         final_contract = None

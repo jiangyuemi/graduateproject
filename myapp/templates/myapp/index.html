@@ -66,7 +66,7 @@
         .shell {
             position: relative;
             z-index: 1;
-            max-width: 44rem;
+            max-width: 52rem;
             margin: 0 auto;
             padding: 2.5rem 1.35rem 4rem;
         }
@@ -158,6 +158,16 @@
             color: var(--muted);
             margin-bottom: 0.5rem;
         }
+        input.inp[type="text"],
+        input.inp[type="number"] {
+            width: 100%;
+            font: inherit;
+            padding: 0.65rem 0.85rem;
+            border-radius: 0.65rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--text);
+        }
         textarea.inp, input[type="file"].inp {
             width: 100%;
             font: inherit;
@@ -166,6 +176,27 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.35);
             color: var(--text);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem 1rem;
+        }
+        @media (max-width: 640px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+        .form-grid .field-span-2 { grid-column: 1 / -1; }
+        .form-hint {
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin: -0.25rem 0 0.35rem;
+        }
+        .sub-h {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--cyan);
+            margin: 0.5rem 0 0.35rem;
+            letter-spacing: 0.06em;
         }
         textarea.inp {
             min-height: 10rem;
@@ -399,7 +430,7 @@
             <header class="hero">
                 <p class="kicker">Contract Lab</p>
                 <h1>租房合同工作台</h1>
-                <p class="lead">一句话生成条款 · 上传或粘贴即可审查风险</p>
+                <p class="lead">填好要素生成标准合同 · 补充条款走知识库 · 上传或粘贴可审查</p>
             </header>
 
             <nav class="tab-pills" aria-label="功能">
@@ -409,11 +440,148 @@
 
             <section v-show="tab === 'gen'">
                 <div class="glass">
-                    <h2>Compose</h2>
-                    <label class="lbl" for="demand">告诉模型你的需求</label>
-                    <textarea id="demand" class="inp" v-model="demand" placeholder="租金、租期、房屋地址、押金、是否允许转租…"></textarea>
+                    <h2>合同要素</h2>
+
+                    <p class="sub-h">当事人</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="lbl" for="landlordName">出租方（甲方）</label>
+                            <input id="landlordName" class="inp" type="text" v-model.trim="form.landlordName" placeholder="姓名或名称" autocomplete="name" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="tenantName">承租方（乙方）</label>
+                            <input id="tenantName" class="inp" type="text" v-model.trim="form.tenantName" placeholder="姓名或名称" autocomplete="name" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="landlordIdNo">甲方身份证号</label>
+                            <input id="landlordIdNo" class="inp" type="text" v-model.trim="form.landlordIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
+                        </div>
+                        <div>
+                            <label class="lbl" for="tenantIdNo">乙方身份证号</label>
+                            <input id="tenantIdNo" class="inp" type="text" v-model.trim="form.tenantIdNo" placeholder="必填，18 位" maxlength="18" autocomplete="off" required />
+                        </div>
+                        <div>
+                            <label class="lbl" for="landlordPhone">甲方电话</label>
+                            <input id="landlordPhone" class="inp" type="text" v-model.trim="form.landlordPhone" placeholder="必填" inputmode="tel" required />
+                        </div>
+                        <div>
+                            <label class="lbl" for="tenantPhone">乙方电话</label>
+                            <input id="tenantPhone" class="inp" type="text" v-model.trim="form.tenantPhone" placeholder="必填" inputmode="tel" required />
+                        </div>
+                    </div>
+
+                    <p class="sub-h">房屋与用途</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="lbl" for="city">市</label>
+                            <input id="city" class="inp" type="text" v-model.trim="form.city" placeholder="如 杭州" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="addressDetail">坐落（区/路/门牌等）</label>
+                            <input id="addressDetail" class="inp" type="text" v-model.trim="form.addressDetail" placeholder="详细地址" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="roomCount">间数</label>
+                            <input id="roomCount" class="inp" type="text" v-model.trim="form.roomCount" placeholder="如 2" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="buildingAreaSqm">建筑面积（㎡）</label>
+                            <input id="buildingAreaSqm" class="inp" type="text" v-model.trim="form.buildingAreaSqm" placeholder="如 65" />
+                        </div>
+                        <div class="field-span-2">
+                            <label class="lbl" for="usagePurpose">用途</label>
+                            <input id="usagePurpose" class="inp" type="text" v-model.trim="form.usagePurpose" placeholder="如 居住" />
+                        </div>
+                    </div>
+
+                    <p class="sub-h">租期</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="lbl" for="leaseMonths">租期共（月）</label>
+                            <input id="leaseMonths" class="inp" type="text" v-model.trim="form.leaseMonths" placeholder="如 12" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="lateRentMonths">拖欠租金满（月）甲方可解约</label>
+                            <input id="lateRentMonths" class="inp" type="text" v-model.trim="form.lateRentMonths" placeholder="如 2" />
+                        </div>
+                        <div>
+                            <label class="lbl">起租日</label>
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                <input class="inp" type="text" v-model.trim="form.leaseStartYear" placeholder="年" aria-label="起租年" />
+                                <input class="inp" type="text" v-model.trim="form.leaseStartMonth" placeholder="月" aria-label="起租月" />
+                                <input class="inp" type="text" v-model.trim="form.leaseStartDay" placeholder="日" aria-label="起租日" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="lbl">到期日</label>
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                <input class="inp" type="text" v-model.trim="form.leaseEndYear" placeholder="年" aria-label="到期年" />
+                                <input class="inp" type="text" v-model.trim="form.leaseEndMonth" placeholder="月" aria-label="到期月" />
+                                <input class="inp" type="text" v-model.trim="form.leaseEndDay" placeholder="日" aria-label="到期日" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="sub-h">租金与押金</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="lbl" for="monthlyRent">月租金（元）</label>
+                            <input id="monthlyRent" class="inp" type="text" v-model.trim="form.monthlyRent" placeholder="数字" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="monthlyRentChinese">大写</label>
+                            <input id="monthlyRentChinese" class="inp" type="text" v-model.trim="form.monthlyRentChinese" placeholder="如 叁仟元整" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="rentPayCycle">支付周期</label>
+                            <input id="rentPayCycle" class="inp" type="text" v-model.trim="form.rentPayCycle" placeholder="如 月 / 季" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="rentPayDeadline">交纳期限说明</label>
+                            <input id="rentPayDeadline" class="inp" type="text" v-model.trim="form.rentPayDeadline" placeholder="如 每月5日前" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="deposit">押金（元）</label>
+                            <input id="deposit" class="inp" type="text" v-model.trim="form.deposit" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="depositChinese">押金大写</label>
+                            <input id="depositChinese" class="inp" type="text" v-model.trim="form.depositChinese" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="penaltyAmount">违约金（元）</label>
+                            <input id="penaltyAmount" class="inp" type="text" v-model.trim="form.penaltyAmount" placeholder="第八条约定" />
+                        </div>
+                    </div>
+
+                    <p class="sub-h">签署日期</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="lbl" for="signYear">年</label>
+                            <input id="signYear" class="inp" type="text" v-model.trim="form.signYear" placeholder="如 2026" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="signMonth">月</label>
+                            <input id="signMonth" class="inp" type="text" v-model.trim="form.signMonth" />
+                        </div>
+                        <div>
+                            <label class="lbl" for="signDay">日</label>
+                            <input id="signDay" class="inp" type="text" v-model.trim="form.signDay" />
+                        </div>
+                    </div>
+
+                    <p class="sub-h">补充 / 个性化条款（可选）</p>
+                    <label class="lbl" for="extraClauses">说明给模型</label>
+                    <p class="form-hint">将结合知识库生成「补充约定」类内容；不需要可留空。</p>
+                    <textarea id="extraClauses" class="inp" v-model="extraClauses" rows="4" placeholder="例：允许乙方饲养宠物；乙方需购买租客险；提前解约需提前30日通知…"></textarea>
+
+                    <details class="iter" style="margin-top: 1rem;">
+                        <summary>预览已填标准合同正文（不发请求也可查看）</summary>
+                        <pre style="margin:0;padding:0.85rem 1rem;border:none;background:transparent;max-height:14rem;">{{ assembledContract }}</pre>
+                    </details>
+
                     <div class="row-btns">
-                        <button type="button" class="btn btn-primary" :disabled="genLoading || !demand.trim()" @click="runGenerate">
+                        <button type="button" class="btn btn-primary" :disabled="genLoading || !canGenerate" @click="runGenerate">
                             <span v-if="genLoading" class="spin"></span>
                             {{ genLoading ? '生成中' : '生成合同' }}
                         </button>
@@ -458,10 +626,10 @@
                                 <span v-if="checkTextLoading" class="spin"></span>
                                 {{ checkTextLoading ? '分析中' : '检查文本' }}
                             </button>
-                        </div>
-                    </div>
+            </div>
+            </div>
                     <p v-if="checkError" class="msg-err">{{ checkError }}</p>
-                </div>
+        </div>
 
                 <div class="glass">
                     <h2>Verdict</h2>
@@ -484,7 +652,7 @@
                         <p v-if="checkPayload.file_info" class="file-note">{{ checkPayload.file_info.original_name }}</p>
                     </template>
                     <div v-else-if="!checkError && !checkPayload" class="empty-hint">跑完检查之后，风险等级和条款问题会集中展示在这里。</div>
-                </div>
+            </div>
             </section>
         </div>
     </div>
@@ -510,10 +678,41 @@
             data() {
                 return {
                     tab: 'gen',
-                    demand: '',
                     genLoading: false,
                     genError: '',
                     genResult: null,
+                    extraClauses: '',
+                    form: {
+                        landlordName: '',
+                        tenantName: '',
+                        landlordIdNo: '',
+                        tenantIdNo: '',
+                        landlordPhone: '',
+                        tenantPhone: '',
+                        city: '',
+                        addressDetail: '',
+                        roomCount: '',
+                        buildingAreaSqm: '',
+                        usagePurpose: '',
+                        leaseMonths: '',
+                        lateRentMonths: '',
+                        leaseStartYear: '',
+                        leaseStartMonth: '',
+                        leaseStartDay: '',
+                        leaseEndYear: '',
+                        leaseEndMonth: '',
+                        leaseEndDay: '',
+                        monthlyRent: '',
+                        monthlyRentChinese: '',
+                        rentPayCycle: '月',
+                        rentPayDeadline: '',
+                        deposit: '',
+                        depositChinese: '',
+                        penaltyAmount: '',
+                        signYear: '',
+                        signMonth: '',
+                        signDay: ''
+                    },
                     contractContent: '',
                     checkFileLoading: false,
                     checkTextLoading: false,
@@ -522,9 +721,61 @@
                 };
             },
             computed: {
+                assembledContract() {
+                    return this.assembleStandardContract();
+                },
+                canGenerate() {
+                    const f = this.form;
+                    return !!(
+                        f.landlordName &&
+                        f.tenantName &&
+                        f.landlordIdNo &&
+                        f.tenantIdNo &&
+                        f.landlordPhone &&
+                        f.tenantPhone &&
+                        f.city &&
+                        f.addressDetail &&
+                        f.roomCount &&
+                        f.buildingAreaSqm &&
+                        f.usagePurpose &&
+                        f.leaseMonths &&
+                        f.lateRentMonths &&
+                        f.leaseStartYear &&
+                        f.leaseStartMonth &&
+                        f.leaseStartDay &&
+                        f.leaseEndYear &&
+                        f.leaseEndMonth &&
+                        f.leaseEndDay &&
+                        f.monthlyRent &&
+                        f.monthlyRentChinese &&
+                        f.rentPayDeadline &&
+                        f.deposit &&
+                        f.depositChinese &&
+                        f.penaltyAmount &&
+                        f.signYear &&
+                        f.signMonth &&
+                        f.signDay
+                    );
+                },
                 displayFinalContract() {
-                    if (!this.genResult) return '';
-                    return stripThink(this.genResult.final_contract || '');
+                    const base = this.assembleStandardContract();
+                    if (!this.genResult) return base;
+
+                    const extraText = stripThink(this.genResult.final_contract || '').trim();
+                    const formattedExtra = this.formatExtraClauses(extraText, this.genResult?.iterations);
+                    if (!formattedExtra) return base;
+
+                    // 把个性化条款插在签署区之前（即出租方/承租方盖章块之前）
+                    const marker = "出租方：（盖章）";
+                    const idx = base.indexOf(marker);
+                    if (idx >= 0) {
+                        const body = base.slice(0, idx).trimEnd();
+                        const signature = base.slice(idx).trimStart();
+                        return body + '\n\n' + formattedExtra + '\n\n' + signature;
+                    }
+
+                    // 兜底：追加到末尾
+                    return base + '\n\n' + formattedExtra;
                 },
                 structuredJson() {
                     const sd = this.checkPayload?.data?.structured_data;
@@ -537,6 +788,210 @@
                 }
             },
             methods: {
+                _ph(v, fallback) {
+                    const t = (v || '').toString().trim();
+                    return t || fallback;
+                },
+                numToCn(n) {
+                    // 仅用于 12 起步的条款编号（通常条款条数不多）
+                    const cnNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+                    if (n < 10) return cnNums[n];
+                    if (n === 10) return "十";
+                    if (n < 20) return "十" + (n === 10 ? "" : cnNums[n % 10]);
+                    if (n < 100) {
+                        const tens = Math.floor(n / 10);
+                        const ones = n % 10;
+                        return cnNums[tens] + "十" + (ones === 0 ? "" : cnNums[ones]);
+                    }
+                    return String(n);
+                },
+                _parseNumberedItems(text) {
+                    // 解析类似：
+                    // - 1. xxx / 2. yyy
+                    // - 1、xxx / 2、yyy
+                    // - 一、xxx / 二、yyy
+                    const lines = String(text || '')
+                        .replace(/\r\n/g, '\n')
+                        .split('\n')
+                        .map((x) => x.trim())
+                        .filter(Boolean);
+
+                    const itemRegex = /^\s*(\d+|[一二三四五六七八九十]{1,3})\s*[、\.\)]\s*(.+)$/;
+                    const items = [];
+                    for (const line of lines) {
+                        const m = line.match(itemRegex);
+                        if (m && m[2]) items.push(m[2].trim());
+                    }
+                    return items;
+                },
+                formatExtraClauses(extraText, iterations) {
+                    if (!extraText || extraText === "（无）") return "";
+
+                    // 如果后端已经输出“第十二条”之类，直接使用
+                    if (/第\s*(\d{1,3}|[一二三四五六七八九十]{2,3}|[一二三四五六七八九十]{1,3})\s*条/.test(extraText)) {
+                        return extraText;
+                    }
+
+                    const items = this._parseNumberedItems(extraText);
+
+                    // 多轮迭代情况下：如果前几轮已经生成了若干“条目”，则本轮条款编号应继续增加。
+                    // 例如：第1轮生成2条（12-13），第2轮再生成2条，应编号为14-15。
+                    let offset = 0;
+                    if (Array.isArray(iterations) && iterations.length >= 2) {
+                        const lastGen = iterations[iterations.length - 1]?.generated_contract || "";
+                        for (let i = 0; i < iterations.length - 1; i++) {
+                            const txt = iterations[i]?.generated_contract || "";
+                            // 避免统计到和 final_contract 相同的那一轮（通常不会发生，但更稳）
+                            if (txt && lastGen && txt.trim() === lastGen.trim()) continue;
+                            offset += this._parseNumberedItems(txt).length;
+                        }
+                    }
+
+                    const startNo = 12 + offset;
+
+                    if (items.length === 0) {
+                        // 单条兜底：包装成第十二条
+                        return `第${this.numToCn(startNo)}条、补充约定：${extraText}`;
+                    }
+
+                    // 多条：从第(startNo)条开始逐条包装
+                    return items
+                        .map((it, idx) => {
+                            const articleNo = startNo + idx;
+                            return `第${this.numToCn(articleNo)}条、补充约定：${it}`;
+                        })
+                        .join("\n\n");
+                },
+                normalizeSupplementNumber(text, targetNo) {
+                    const t = stripThink(text || '').trim();
+                    if (!t) return '';
+
+                    const targetCn = this.numToCn(targetNo);
+
+                    // 优先替换后端常见的“第十二条”
+                    if (/第\s*(十二|12)\s*条/.test(t)) {
+                        return t.replace(/第\s*(十二|12)\s*条/, `第${targetCn}条`);
+                    }
+
+                    // 如果后端已经输出了某个条号（数字/中文），替换为目标条号
+                    if (/第\s*(\d+)\s*条/.test(t) || /第\s*[一二三四五六七八九十]{2,3}\s*条/.test(t)) {
+                        return t.replace(/第\s*(\d+|[一二三四五六七八九十]{2,3})\s*条/, `第${targetCn}条`);
+                    }
+
+                    // 没有条号：包装成补充约定
+                    return `第${targetCn}条、补充约定：${t}`;
+                },
+                assembleStandardContract() {
+                    const f = this.form;
+                    const a = this._ph(f.landlordName, '________');
+                    const b = this._ph(f.tenantName, '________');
+                    const aid = this._ph(f.landlordIdNo, '____________________');
+                    const bid = this._ph(f.tenantIdNo, '____________________');
+                    const city = this._ph(f.city, '________');
+                    const addr = this._ph(f.addressDetail, '________________');
+                    const rooms = this._ph(f.roomCount, '____');
+                    const area = this._ph(f.buildingAreaSqm, '________');
+                    const usage = this._ph(f.usagePurpose, '________');
+                    const months = this._ph(f.leaseMonths, '____');
+                    const sy = this._ph(f.leaseStartYear, '____');
+                    const sm = this._ph(f.leaseStartMonth, '____');
+                    const sd = this._ph(f.leaseStartDay, '____');
+                    const ey = this._ph(f.leaseEndYear, '____');
+                    const em = this._ph(f.leaseEndMonth, '____');
+                    const ed = this._ph(f.leaseEndDay, '____');
+                    const late = this._ph(f.lateRentMonths, '____');
+                    const rent = this._ph(f.monthlyRent, '________');
+                    const rentU = this._ph(f.monthlyRentChinese, '________________');
+                    const payEvery = this._ph(f.rentPayCycle, '月');
+                    const payDl = this._ph(f.rentPayDeadline, '________________');
+                    const dep = this._ph(f.deposit, '____');
+                    const depU = this._ph(f.depositChinese, '__________________');
+                    const pen = this._ph(f.penaltyAmount, '____');
+                    const lp = this._ph(f.landlordPhone, '___________');
+                    const tp = this._ph(f.tenantPhone, '___________');
+                    const sy2 = this._ph(f.signYear, '____');
+                    const sm2 = this._ph(f.signMonth, '____');
+                    const sd2 = this._ph(f.signDay, '____');
+                    return `出租方（以下简称甲方）：${a}，身份证号：${aid}，
+承租方（以下简称乙方）：${b}，身份证号：${bid}，
+
+根据《中华人民共和国民法典》及有关规定，为明确甲、乙双方的权利义务关系，经双方协商一致，签订本合同。
+
+第一条、甲方将自有的坐落在${city}市${addr}的房屋${rooms}间，建筑面积${area}平方米,出租给乙方作${usage}使用。
+
+第二条、租赁期限，租赁期共${months}个月，从${sy}年${sm}月${sd}日至${ey}年${em}月${ed}日。合同期满后，甲方仍继续出租房屋的，乙方拥有优先承租权。
+
+乙方有下列情形之一的，甲方可以终止合同，收回房屋：
+
+1．利用承租房屋进行非法活动，损害公共利益的；
+2．拖欠租金${late}个月的。
+
+第三条、租金和租金交纳期限，甲乙双方议定月租金(人民币)${rent}元(大写${rentU})，租金每${payEvery}支付一次，租金的交纳期限为${payDl}。
+
+第四条、乙方向甲方交纳押金(人民币)${dep}元(大写${depU})。合同到期后当日返还。
+
+第五条、房屋的装修，在不影响房屋主体结构的前提下，乙方可对房屋进行装修或改善增设他物。租赁合同期满，房屋的装修、增设的物品在不影响房屋主体结构的情况下，由乙方自行处理。
+
+第六条、乙方租房期间水、电、电话费、宽带费、物业管理费用由乙方承担。
+
+第七条、租赁双方的变更
+
+1．如甲方按法定手续程序将房产所有权转移给第三方时，在无约定的情况下，本合同对新的房产所有者继续有效；
+2．甲方出售房屋，须在三个月前书面通知乙方，在同等条件下，乙方有优先购买权；
+3、合同期内，乙方如不能再继续经营时，可转让他人经营。
+
+第八条、违约责任
+
+1．租赁双方如有一方未履行第七条约定的有关条款的，违约方赔偿对方${pen}元。
+2．甲方向乙方收取约定租金以外的费用，乙方有权拒付。
+
+第九条、免责条件
+
+1．房屋如因不可抗拒的原因导致损毁或造成乙方损失的，甲乙双方互不承担责任。
+2．因市政建设需要拆除或改造已租赁的房屋，使甲乙双方造成损失，互不承担责任。
+
+因上述原因而终止合同的，租金按实际使用时间计算，多退少补。
+
+第十条、争议解决的方式
+
+本合同在履行中如发生争议，双方应协商解决；协商不成时,也可以向人民法院起诉。
+
+第十一条、本合同未尽事宜，甲乙双方可共同协商，签订补充协议。与本合同具有同等效力。
+
+出租方：（盖章）　　　 承租方：（盖章）
+
+委托代理人：（签名）　 　委托代理人：（签名）
+
+电话：${lp}　　　　　　 电话：${tp}
+
+${sy2}年${sm2}月${sd2}日　　　　　　 ${sy2}年${sm2}月${sd2}日`;
+                },
+                buildGenerateDemand() {
+                    const raw = (this.extraClauses || '').trim();
+                    if (!raw) return '（无）';
+
+                    // 个性化需求可能不止一条：前端先做“条目切分 + 编号”，避免把拼接工作交给大模型
+                    // 支持常见输入：
+                    // - 用换行分条
+                    // - 用中文/英文分号分条（； / ;）
+                    // - 用“1、xxx 2、yyy”或“1. xxx 2. yyy”编号粘贴在同一行
+                    let normalized = raw.replace(/\r\n/g, '\n').replace(/；/g, '\n').replace(/;/g, '\n');
+                    // 在“编号标记”前插入换行，帮助同一行多条切开
+                    normalized = normalized.replace(/(^|\s)([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '\n$2、');
+
+                    const items = normalized
+                        .split('\n')
+                        .map((x) => x.trim())
+                        .filter(Boolean)
+                        .map((x) =>
+                            x.replace(/^\s*([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '')
+                        )
+                        .filter(Boolean);
+
+                    if (!items.length) return '（无）';
+                    if (items.length === 1) return items[0];
+                    return items.map((it, idx) => `${idx + 1}. ${it}`).join('\n');
+                },
                 riskLabel(level) {
                     const l = String(level || '').toLowerCase();
                     if (l === 'high' || l === '高') return '高风险';
@@ -554,27 +1009,87 @@
                     return issues.map((x) => x.message).join('；');
                 },
                 runGenerate() {
-                    const d = this.demand.trim();
-                    if (!d) return;
+                    // 注意：个性化需求要求“逐条发送”，避免把多条需求一次性让大模型合并
+                    const raw = (this.extraClauses || '').trim();
+                    if (!raw) {
+                        this.genResult = { final_contract: '', iterations: [], total_iterations: 0, success: true };
+                        return;
+                    }
+
+                    if (!this.canGenerate) return;
+
+                    // 把用户输入切成 items（去掉前置编号）
+                    let normalized = raw.replace(/\r\n/g, '\n').replace(/；/g, '\n').replace(/;/g, '\n');
+                    normalized = normalized.replace(/(^|\s)([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '\n$2、');
+                    const items = normalized
+                        .split('\n')
+                        .map((x) => x.trim())
+                        .filter(Boolean)
+                        .map((x) =>
+                            x.replace(/^\s*([0-9]{1,3}|[一二三四五六七八九十]{1,3})[、\.\)]\s*/g, '')
+                        )
+                        .filter(Boolean);
+
+                    if (!items.length) {
+                        this.genResult = { final_contract: '', iterations: [], total_iterations: 0, success: true };
+                        return;
+                    }
+
+                    // 并行发起每条个性化请求（分批并发）；然后按顺序把结果拼接成最终“补充约定”
                     this.genLoading = true;
                     this.genError = '';
                     this.genResult = null;
-                    fetch('/generate/generate/', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
-                        },
-                        body: JSON.stringify({ demand: d })
-                    })
-                        .then((res) => {
-                            if (!res.ok) throw new Error('HTTP ' + res.status);
-                            return res.json();
-                        })
-                        .then((data) => { this.genResult = data; })
-                        .catch((e) => { this.genError = e.message || String(e); })
-                        .finally(() => { this.genLoading = false; });
+
+                    (async () => {
+                        const outputs = Array(items.length).fill('');
+                        // 并发上限：最多同时请求 N 条，避免后端/第三方限流
+                        const maxConcurrent = 4;
+                        const batchSize = Math.min(items.length, maxConcurrent);
+
+                        try {
+                            for (let start = 0; start < items.length; start += batchSize) {
+                                const batch = items.slice(start, start + batchSize);
+                                const batchPromises = batch.map((demand, j) => {
+                                    const idx = start + j;
+                                    return fetch('/generate/generate/', {
+                                        method: 'POST',
+                                        credentials: 'same-origin',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': getCookie('csrftoken')
+                                        },
+                                        body: JSON.stringify({ demand })
+                                    })
+                                        .then((res) => {
+                                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                                            return res.json();
+                                        })
+                                        .then((data) => {
+                                            const fc = data?.final_contract || '';
+                                            return this.normalizeSupplementNumber(fc, 12 + idx);
+                                        });
+                                });
+
+                                const batchResults = await Promise.allSettled(batchPromises);
+                                batchResults.forEach((r, j) => {
+                                    const idx = start + j;
+                                    if (r.status === 'fulfilled' && r.value) outputs[idx] = r.value;
+                                    if (r.status === 'rejected') this.genError = r.reason?.message || String(r.reason);
+                                });
+                            }
+                        } catch (e) {
+                            this.genError = e?.message || String(e);
+                        }
+
+                        const supplements = outputs.filter(Boolean);
+                        this.genResult = {
+                            final_contract: supplements.join('\n\n'),
+                            iterations: [],
+                            total_iterations: items.length,
+                            success: supplements.length > 0
+                        };
+                        this.genLoading = false;
+                    })();
                 },
                 runCheckFile() {
                     const input = this.$refs.fileInput;
@@ -583,8 +1098,8 @@
                         alert('先选文件');
                         return;
                     }
-                    const fd = new FormData();
-                    fd.append('upload_file', file);
+            const fd = new FormData(); 
+            fd.append('upload_file', file);
                     this.checkFileLoading = true;
                     this.checkError = '';
                     this.checkPayload = null;
@@ -611,9 +1126,9 @@
                     fetch('/check/check/', {
                         method: 'POST',
                         credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
                         },
                         body: JSON.stringify({ contract_content: text })
                     })
