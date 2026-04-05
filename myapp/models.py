@@ -77,58 +77,7 @@ class Contract(models.Model):
 
 
 
-class ContractTemplate(models.Model):
-    """合同模板模型"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, verbose_name="模板名称")
-    description = models.TextField(blank=True, null=True, verbose_name="模板描述")
-    
-    # 模板内容
-    content = models.TextField(verbose_name="模板内容")
-    
-    # 模板类型
-    template_type = models.CharField(max_length=50, default='rental', verbose_name="模板类型")
-    
-    # 是否启用
-    is_active = models.BooleanField(default=True, verbose_name="是否启用")
-    
-    # 使用次数
-    usage_count = models.IntegerField(default=0, verbose_name="使用次数")
-    
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
-    
-    class Meta:
-        db_table = 'contract_templates'
-        verbose_name = '合同模板'
-        verbose_name_plural = verbose_name
 
-
-class LegalKnowledge(models.Model):
-    """法律知识库模型"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=200, verbose_name="标题")
-    content = models.TextField(verbose_name="内容")
-    
-    # 法律类型
-    law_type = models.CharField(max_length=50, verbose_name="法律类型")
-    
-    # 地区（如果有）
-    region = models.CharField(max_length=100, blank=True, null=True, verbose_name="适用地区")
-    
-    # 向量ID（用于Chroma检索）
-    vector_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="向量ID")
-    
-    # 是否启用
-    is_active = models.BooleanField(default=True, verbose_name="是否启用")
-    
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
-    
-    class Meta:
-        db_table = 'legal_knowledge'
-        verbose_name = '法律知识'
-        verbose_name_plural = verbose_name
 
 
 class CheckRule(models.Model):
@@ -170,6 +119,23 @@ class CheckRule(models.Model):
     class Meta:
         db_table = 'check_rules'
         verbose_name = '检查规则'
+        verbose_name_plural = verbose_name
+
+
+class LegalClause(models.Model):
+    """法律条款模型"""
+    id = models.AutoField(primary_key=True, verbose_name="ID")
+    title = models.CharField(max_length=255, verbose_name="条款标题")
+    content = models.TextField(verbose_name="条款内容")
+    type = models.CharField(max_length=50, verbose_name="法律类型")
+    area = models.CharField(max_length=50, verbose_name="适用地区")
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    
+    class Meta:
+        db_table = 'legal_clauses'
+        verbose_name = '法律条款'
         verbose_name_plural = verbose_name
 
 
