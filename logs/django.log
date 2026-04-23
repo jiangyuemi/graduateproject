@@ -4369,3 +4369,139 @@ Not Found: /create/
 "GET / HTTP/1.1" 200 21658
 Unauthorized: /api/user/profile/
 "GET /api/user/profile/ HTTP/1.1" 401 52
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 21658
+Unauthorized: /api/user/profile/
+"GET /api/user/profile/ HTTP/1.1" 401 52
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 4139
+"GET /api/docs HTTP/1.1" 301 0
+"GET /api/docs/ HTTP/1.1" 200 4640
+"GET /api/schema/ HTTP/1.1" 200 14287
+Forbidden: /generate/generate/
+"POST /generate/generate/ HTTP/1.1" 403 43
+Forbidden: /generate/generate/
+"POST /generate/generate/ HTTP/1.1" 403 43
+Forbidden: /generate/generate/
+"POST /generate/generate/ HTTP/1.1" 403 43
+"POST /generate/generate/ HTTP/1.1" 200 1852
+"GET / HTTP/1.1" 200 21658
+Unauthorized: /api/user/profile/
+"GET /api/user/profile/ HTTP/1.1" 401 52
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 4139
+"POST /api/user/login/ HTTP/1.1" 200 127
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 79
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/contract/ HTTP/1.1" 200 79
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/contract/ HTTP/1.1" 200 79
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"POST /api/contract/ HTTP/1.1" 200 182
+"POST /api/user/stats/ HTTP/1.1" 200 88
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 273
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"POST /check/check/ HTTP/1.1" 200 8650
+"POST /api/contract/ HTTP/1.1" 200 180
+"POST /api/user/stats/ HTTP/1.1" 200 88
+/home/jxh/GraduateProject/mysite/myapp/views/check/checkservice/service.py changed, reloading.
+Watching for file changes with StatReloader
+/home/jxh/GraduateProject/mysite/myapp/views/user/auth.py changed, reloading.
+Watching for file changes with StatReloader
+"POST /api/user/logout/ HTTP/1.1" 200 52
+"GET / HTTP/1.1" 200 21658
+Unauthorized: /api/user/profile/
+"GET /api/user/profile/ HTTP/1.1" 401 52
+"POST /api/user/login/ HTTP/1.1" 200 127
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"GET /api/user/profile/ HTTP/1.1" 200 11180
+"PUT /api/user/profile/ HTTP/1.1" 200 238752
+"POST /api/user/logout/ HTTP/1.1" 200 52
+"POST /api/user/login/ HTTP/1.1" 200 127
+"GET /api/user/profile/ HTTP/1.1" 200 238924
+"PUT /api/user/profile/ HTTP/1.1" 200 87704
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/contract/c172ddc8-8a16-4a32-83ce-8aebde37b137/ HTTP/1.1" 200 5937
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/contract/d52da2a3-4ff3-4834-995e-85f3d8283613/ HTTP/1.1" 200 5953
+"GET /api/contract/d52da2a3-4ff3-4834-995e-85f3d8283613/ HTTP/1.1" 200 5953
+"GET /api/contract/d52da2a3-4ff3-4834-995e-85f3d8283613/ HTTP/1.1" 200 5953
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/history/ HTTP/1.1" 200 30329
+"GET /api/contract/ HTTP/1.1" 200 467
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/create/ HTTP/1.1" 200 54003
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/check/ HTTP/1.1" 200 27188
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+Watching for file changes with StatReloader
+"GET /api/profile/ HTTP/1.1" 200 25882
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"GET /api/user/profile/ HTTP/1.1" 200 87876
+"POST /api/user/logout/ HTTP/1.1" 200 52
+Unauthorized: /api/user/login/
+"POST /api/user/login/ HTTP/1.1" 401 76
